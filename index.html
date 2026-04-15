@@ -207,8 +207,7 @@
   })();
   function saveSettings(){ANTHROPIC_API_KEY=document.getElementById('api-key-input').value.trim();FOLDER_ID=document.getElementById('folder-id-input').value.trim()||'1T6Wa2u13H4RCEpTWR0VMOOTcUF8qxIjT';settings.apiKey=ANTHROPIC_API_KEY;settings.folderId=FOLDER_ID;localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}
   function initiateGoogleAuth(){
-    const CLIENT_ID=settings.googleClientId||prompt('Enter your Google OAuth Client ID (from console.cloud.google.com):');
-    if(!CLIENT_ID)return;settings.googleClientId=CLIENT_ID;localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));
+    const CLIENT_ID='24717148747-qeaqm182dhgbun2akpons0c8gimqmv9k.apps.googleusercontent.com';
     const redirectUri=window.location.href.split('#')[0];
     const scope=encodeURIComponent('https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets');
     window.location.href=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
