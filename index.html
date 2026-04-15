@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Receipt Tracker — LLC Tax Year</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f7f7f5;
+      --bg-tertiary: #f0efeb;
+      --text-primary: #1a1a18;
+      --text-secondary: #6b6b66;
+      --border-tertiary: rgba(0,0,0,0.1);
+      --border-secondary: rgba(0,0,0,0.18);
+      --border-primary: rgba(0,0,0,0.28);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --font-sans: 'Inter', system-ui, sans-serif;
+      --font-mono: 'DM Mono', monospace;
+      --font-serif: 'Playfair Display', serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1a1a18;
+        --bg-secondary: #242422;
+        --bg-tertiary: #2c2c2a;
+        --text-primary: #f0efeb;
+        --text-secondary: #9b9b96;
+        --border-tertiary: rgba(255,255,255,0.1);
+        --border-secondary: rgba(255,255,255,0.18);
+        --border-primary: rgba(255,255,255,0.28);
+      }
+    }
+
+    body { font-family: var(--font-sans); background: var(--bg-tertiary); color: var(--text-primary); min-height: 100vh; }
+    .app { max-width: 680px; margin: 0 auto; background: var(--bg-primary); min-height: 100vh; }
+    .header { padding: 1.5rem 1.5rem 1rem; border-bottom: 0.5px solid var(--border-tertiary); display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .header-title { font-family: var(--font-serif); font-size: 22px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.3px; }
+    .header-sub { font-size: 13px; color: var(--text-secondary); font-family: var(--font-mono); }
+    .tabs { display: flex; border-bottom: 0.5px solid var(--border-tertiary); padding: 0 1.5rem; background: var(--bg-secondary); overflow-x: auto; }
+    .tab { padding: 0.75rem 1.1rem; font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s; white-space: nowrap; font-family: var(--font-sans); }
+    .tab.active { color: var(--text-primary); border-bottom-color: var(--text-primary); }
+    .content { padding: 1.5rem; }
+    .upload-zone { border: 1.5px dashed var(--border-secondary); border-radius: var(--radius-lg); padding: 2.5rem 1.5rem; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; background: var(--bg-secondary); position: relative; }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--border-primary); background: var(--bg-tertiary); }
+    .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .upload-icon { width: 40px; height: 40px; margin: 0 auto 0.75rem; border-radius: 50%; background: var(--bg-primary); border: 0.5px solid var(--border-tertiary); display: flex; align-items: center; justify-content: center; }
+    .upload-icon svg { width: 20px; height: 20px; stroke: var(--text-secondary); }
+    .upload-label { font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
+    .upload-hint { font-size: 12px; color: var(--text-secondary); }
+    .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 1rem; }
+    .preview-thumb { border-radius: var(--radius-md); border: 0.5px solid var(--border-tertiary); overflow: hidden; aspect-ratio: 3/4; background: var(--bg-secondary); position: relative; }
+    .preview-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .preview-thumb .remove-btn { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.6); color: white; font-size: 14px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+    .action-btn { width: 100%; margin-top: 1rem; padding: 0.75rem; background: var(--text-primary); color: var(--bg-primary); border: none; border-radius: var(--radius-md); font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; font-family: var(--font-sans); }
+    .action-btn:hover { opacity: 0.85; }
+    .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .extraction-card { border: 0.5px solid var(--border-tertiary); border-radius: var(--radius-lg); padding: 1.25rem; margin-top: 1rem; background: var(--bg-primary); }
+    .extraction-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 0.5px solid var(--border-tertiary); }
+    .extraction-thumb { width: 48px; height: 60px; border-radius: 4px; border: 0.5px solid var(--border-tertiary); object-fit: cover; flex-shrink: 0; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-secondary); }
+    .extraction-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field-full { grid-column: 1 / -1; }
+    .field label { display: block; font-size: 11px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .field input, .field select, .field textarea { width: 100%; font-size: 13px; font-family: var(--font-sans); padding: 8px 10px; border: 0.5px solid var(--border-secondary); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary); outline: none; transition: border-color 0.15s; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--border-primary); }
+    .field textarea { resize: vertical; min-height: 60px; }
+    .status-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 999px; font-family: var(--font-mono); }
+    .status-pill.extracting { background: #FAEEDA; color: #854F0B; }
+    .status-pill.ready { background: #EAF3DE; color: #3B6D11; }
+    .status-pill.saving { background: #E6F1FB; color: #185FA5; }
+    .status-pill.saved { background: #EAF3DE; color: #3B6D11; }
+    .status-pill.error { background: #FCEBEB; color: #A32D2D; }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; align-items: flex-end; }
+    .filters .field { flex: 1; min-width: 130px; }
+    .filter-clear { padding: 0 0.875rem; height: 36px; background: none; border: 0.5px solid var(--border-secondary); border-radius: var(--radius-md); font-size: 13px; color: var(--text-secondary); cursor: pointer; font-family: var(--font-sans); white-space: nowrap; align-self: flex-end; }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .ledger-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 500px; }
+    .ledger-table th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 0.5px solid var(--border-tertiary); background: var(--bg-secondary); }
+    .ledger-table td { padding: 10px; border-bottom: 0.5px solid var(--border-tertiary); color: var(--text-primary); vertical-align: middle; }
+    .ledger-table tr:last-child td { border-bottom: none; }
+    .ledger-table tr:hover td { background: var(--bg-secondary); }
+    .cat-badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; font-family: var(--font-mono); white-space: nowrap; }
+    .amount-cell { font-family: var(--font-mono); font-weight: 500; text-align: right; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    .summary-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 0.875rem 1rem; }
+    .s-label { font-size: 11px; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .s-value { font-size: 22px; font-weight: 500; color: var(--text-primary); font-family: var(--font-mono); }
+    .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border-tertiary); }
+    .cat-row:last-child { border-bottom: none; }
+    .cat-bar-wrap { flex: 1; height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; }
+    .cat-bar { height: 100%; border-radius: 3px; background: var(--text-primary); transition: width 0.4s ease; }
+    .cat-name { font-size: 13px; width: 150px; flex-shrink: 0; }
+    .cat-amt { font-family: var(--font-mono); font-size: 13px; font-weight: 500; min-width: 75px; text-align: right; }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); font-size: 14px; }
+    .log-section { margin-top: 1rem; padding: 0.75rem 1rem; background: var(--bg-secondary); border-radius: var(--radius-md); font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); max-height: 120px; overflow-y: auto; }
+    .log-entry { padding: 2px 0; }
+    .log-entry.ok { color: #3B6D11; }
+    .log-entry.err { color: #A32D2D; }
+    .link-cell a { color: #185FA5; text-decoration: none; font-size: 12px; }
+    .link-cell a:hover { text-decoration: underline; }
+    .qty-price { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); }
+    .section-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.75rem; }
+    .add-item-btn { font-size: 12px; padding: 4px 10px; background: none; border: 0.5px solid var(--border-secondary); border-radius: var(--radius-md); cursor: pointer; color: var(--text-secondary); margin-top: 4px; font-family: var(--font-sans); }
+    .setup-card { border: 0.5px solid var(--border-tertiary); border-radius: var(--radius-lg); padding: 1.5rem; background: var(--bg-secondary); margin-bottom: 1.5rem; }
+    .setup-card h3 { font-size: 15px; font-weight: 500; margin-bottom: 0.5rem; }
+    .setup-card p { font-size: 13px; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.6; }
+    .setup-card a { color: #185FA5; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div>
+      <div class="header-title">Receipt Ledger</div>
+      <div class="header-sub" id="year-label">LLC · Tax Year 2026</div>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('upload')">Upload</button>
+    <button class="tab" onclick="switchTab('review')">Review & Save</button>
+    <button class="tab" onclick="switchTab('ledger')">Ledger</button>
+    <button class="tab" onclick="switchTab('summary')">Summary</button>
+    <button class="tab" onclick="switchTab('settings')">Settings</button>
+  </div>
+  <div class="content">
+    <div id="tab-settings" style="display:none">
+      <div class="setup-card">
+        <h3>Anthropic API Key</h3>
+        <p>Required for AI receipt extraction. Get yours at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>. Your key is stored only in this browser.</p>
+        <div class="field"><label>API Key</label><input type="password" id="api-key-input" placeholder="sk-ant-..." oninput="saveSettings()" /></div>
+      </div>
+      <div class="setup-card">
+        <h3>Google Drive Folder ID</h3>
+        <p>The parent folder where year subfolders and sheets will be created. Copy the ID from your Drive folder URL.</p>
+        <div class="field"><label>Folder ID</label><input type="text" id="folder-id-input" placeholder="1T6Wa2u13H4RCEpTW..." oninput="saveSettings()" /></div>
+      </div>
+      <div class="setup-card">
+        <h3>Google OAuth</h3>
+        <p>To save to Google Drive and Sheets, you need to authenticate with Google. This app uses Google's OAuth flow — your credentials are never stored here.</p>
+        <button class="action-btn" onclick="initiateGoogleAuth()" style="margin-top:0;">Connect Google Account</button>
+        <div id="google-status" style="font-size:12px;color:var(--text-secondary);margin-top:0.5rem;font-family:var(--font-mono);"></div>
+      </div>
+    </div>
+    <div id="tab-upload">
+      <div class="upload-zone" id="dropzone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+        <input type="file" accept="image/*,application/pdf" multiple onchange="handleFiles(this.files)" />
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="upload-label">Drop receipts or invoices here</div>
+        <div class="upload-hint">JPG, PNG, PDF — multiple files OK</div>
+      </div>
+      <div class="preview-grid" id="preview-grid"></div>
+      <button class="action-btn" id="extract-btn" onclick="startExtraction()" disabled>Extract data with AI</button>
+    </div>
+    <div id="tab-review" style="display:none">
+      <div id="extraction-cards"></div>
+      <div id="log-section" class="log-section" style="display:none"></div>
+      <button class="action-btn" id="save-all-btn" onclick="saveAll()" disabled style="margin-top:1rem;">Save all to Drive & Sheets</button>
+    </div>
+    <div id="tab-ledger" style="display:none">
+      <div class="filters">
+        <div class="field"><label>From</label><input type="date" id="filter-from" onchange="renderLedger()" /></div>
+        <div class="field"><label>To</label><input type="date" id="filter-to" onchange="renderLedger()" /></div>
+        <div class="field"><label>Category</label><select id="filter-cat" onchange="renderLedger()"><option value="">All categories</option></select></div>
+        <button class="filter-clear" onclick="clearFilters()">Clear</button>
+      </div>
+      <div class="table-wrap"><div id="ledger-content"></div></div>
+    </div>
+    <div id="tab-summary" style="display:none"><div id="summary-content"></div></div>
+  </div>
+</div>
+<script>
+  const TAX_YEAR = new Date().getFullYear();
+  const STORAGE_KEY = 'receipts_' + TAX_YEAR;
+  const SETTINGS_KEY = 'receipt_tracker_settings';
+  const CATEGORIES = ['Meals & Entertainment','Travel','Office Supplies','Software & Subscriptions','Professional Services','Utilities','Equipment','Marketing & Advertising','Other'];
+  const CAT_COLORS = {
+    'Meals & Entertainment':['#FAEEDA','#854F0B'],'Travel':['#E6F1FB','#185FA5'],'Office Supplies':['#EAF3DE','#3B6D11'],
+    'Software & Subscriptions':['#EEEDFE','#534AB7'],'Professional Services':['#FBEAF0','#993556'],
+    'Utilities':['#E1F5EE','#0F6E56'],'Equipment':['#FAECE7','#993C1D'],'Marketing & Advertising':['#FAEEDA','#BA7517'],'Other':['#F1EFE8','#5F5E5A']
+  };
+  let pendingFiles=[],extractions=[],savedReceipts=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'),yearFolderId=null,sheetId=null,logs=[];
+  let settings=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}');
+  let ANTHROPIC_API_KEY=settings.apiKey||'';
+  let FOLDER_ID=settings.folderId||'1T6Wa2u13H4RCEpTWR0VMOOTcUF8qxIjT';
+  let googleAccessToken=settings.googleAccessToken||null;
+  document.getElementById('year-label').textContent='LLC · Tax Year '+TAX_YEAR;
+  document.getElementById('api-key-input').value=ANTHROPIC_API_KEY;
+  document.getElementById('folder-id-input').value=FOLDER_ID;
+  if(googleAccessToken)document.getElementById('google-status').textContent='Google account connected.';
+  populateCatFilter();renderLedger();
+  (function checkOAuthCallback(){
+    const hash=window.location.hash;
+    if(hash.includes('access_token=')){
+      const params=new URLSearchParams(hash.substring(1));
+      const token=params.get('access_token');
+      if(token){googleAccessToken=token;settings.googleAccessToken=token;localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));document.getElementById('google-status').textContent='Google account connected.';window.location.hash='';switchTab('upload');}
+    }
+  })();
+  function saveSettings(){ANTHROPIC_API_KEY=document.getElementById('api-key-input').value.trim();FOLDER_ID=document.getElementById('folder-id-input').value.trim()||'1T6Wa2u13H4RCEpTWR0VMOOTcUF8qxIjT';settings.apiKey=ANTHROPIC_API_KEY;settings.folderId=FOLDER_ID;localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}
+  function initiateGoogleAuth(){
+    const CLIENT_ID=settings.googleClientId||prompt('Enter your Google OAuth Client ID (from console.cloud.google.com):');
+    if(!CLIENT_ID)return;settings.googleClientId=CLIENT_ID;localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));
+    const redirectUri=window.location.href.split('#')[0];
+    const scope=encodeURIComponent('https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets');
+    window.location.href=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
+  }
+  function switchTab(name){
+    ['upload','review','ledger','summary','settings'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===name?'block':'none';});
+    document.querySelectorAll('.tab').forEach((btn,i)=>{btn.classList.toggle('active',['upload','review','ledger','summary','settings'][i]===name);});
+    if(name==='ledger')renderLedger();if(name==='summary')renderSummary();
+  }
+  function handleDrop(e){e.preventDefault();document.getElementById('dropzone').classList.remove('drag');handleFiles(e.dataTransfer.files);}
+  function handleFiles(files){for(const f of files){if(!pendingFiles.find(p=>p.name===f.name&&p.size===f.size))pendingFiles.push(f);}renderPreviews();}
+  function renderPreviews(){
+    const grid=document.getElementById('preview-grid');grid.innerHTML='';
+    pendingFiles.forEach((f,i)=>{
+      const div=document.createElement('div');div.className='preview-thumb';
+      if(f.type.startsWith('image/')){const url=URL.createObjectURL(f);div.innerHTML='<img src="'+url+'" /><button class="remove-btn" onclick="removeFile('+i+')">×</button>';}
+      else{div.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:10px;color:var(--text-secondary);padding:6px;text-align:center;word-break:break-all;">'+f.name+'</div><button class="remove-btn" onclick="removeFile('+i+')">×</button>';}
+      grid.appendChild(div);
+    });
+    document.getElementById('extract-btn').disabled=pendingFiles.length===0;
+  }
+  function removeFile(i){pendingFiles.splice(i,1);renderPreviews();}
+  function toBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});}
+  async function startExtraction(){
+    if(!pendingFiles.length)return;
+    if(!ANTHROPIC_API_KEY){alert('Please add your Anthropic API key in the Settings tab first.');switchTab('settings');return;}
+    extractions=pendingFiles.map(f=>({file:f,status:'extracting',data:null,imgUrl:f.type.startsWith('image/')?URL.createObjectURL(f):null}));
+    switchTab('review');renderExtractionCards();document.getElementById('save-all-btn').disabled=true;
+    for(let i=0;i<extractions.length;i++){
+      extractions[i].status='extracting';
+      try{
+        const b64=await toBase64(extractions[i].file);const isImg=extractions[i].file.type.startsWith('image/');const mediaType=isImg?extractions[i].file.type:'application/pdf';
+        const contentBlock=isImg?{type:'image',source:{type:'base64',media_type:mediaType,data:b64}}:{type:'document',source:{type:'base64',media_type:mediaType,data:b64}};
+        const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-calls':'true'},
+          body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:[contentBlock,{type:'text',text:'Extract receipt/invoice data and return ONLY valid JSON with these exact keys:\n{\n  "vendor": "string",\n  "date": "YYYY-MM-DD",\n  "items": [{"description": "string", "quantity": number, "unit_price": number, "line_total": number}],\n  "subtotal": number,\n  "tax": number,\n  "total": number,\n  "suggested_category": "one of: Meals & Entertainment, Travel, Office Supplies, Software & Subscriptions, Professional Services, Utilities, Equipment, Marketing & Advertising, Other",\n  "notes": "string or empty string"\n}\nIf a field is unknown use null. Return ONLY the JSON, no markdown, no explanation.'}]}]})});
+        const d=await resp.json();const text=(d.content||[]).find(c=>c.type==='text')?.text||'{}';const clean=text.replace(/```json|```/g,'').trim();
+        extractions[i].data=JSON.parse(clean);extractions[i].status='ready';
+      }catch(e){extractions[i].data={vendor:'',date:'',items:[{description:'',quantity:1,unit_price:0,line_total:0}],subtotal:0,tax:0,total:0,suggested_category:'Other',notes:''};extractions[i].status='ready';}
+      renderExtractionCards();
+    }
+    document.getElementById('save-all-btn').disabled=false;
+  }
+  function renderExtractionCards(){
+    const container=document.getElementById('extraction-cards');container.innerHTML='';
+    const statusLabels={extracting:'Extracting...',ready:'Ready',saving:'Saving...',saved:'Saved',error:'Error'};
+    extractions.forEach((ext,i)=>{
+      const d=ext.data||{};const items=d.items||[{description:'',quantity:1,unit_price:0,line_total:0}];
+      const catOptions=CATEGORIES.map(c=>'<option value="'+c+'"'+((d.suggested_category||'Other')===c?' selected':'')+'>'+c+'</option>').join('');
+      const itemsHtml=items.map((item,j)=>'<div style="display:grid;grid-template-columns:1fr 60px 75px 75px;gap:6px;margin-bottom:6px;align-items:center;"><input type="text" value="'+esc(item.description||'')+'" placeholder="Description" oninput="extractions['+i+'].data.items['+j+'].description=this.value" style="font-size:12px;" /><input type="number" value="'+(item.quantity??1)+'" placeholder="Qty" min="0" step="any" oninput="extractions['+i+'].data.items['+j+'].quantity=parseFloat(this.value)||0" style="font-size:12px;" /><input type="number" value="'+((item.unit_price??0).toFixed(2))+'" placeholder="Unit $" min="0" step="0.01" oninput="extractions['+i+'].data.items['+j+'].unit_price=parseFloat(this.value)||0" style="font-size:12px;" /><input type="number" value="'+((item.line_total??0).toFixed(2))+'" placeholder="Total" min="0" step="0.01" oninput="extractions['+i+'].data.items['+j+'].line_total=parseFloat(this.value)||0" style="font-size:12px;" /></div>').join('');
+      const card=document.createElement('div');card.className='extraction-card';card.id='ext-card-'+i;
+      const thumbHtml=ext.imgUrl?'<div class="extraction-thumb"><img src="'+ext.imgUrl+'" /></div>':'<div class="extraction-thumb">PDF</div>';
+      card.innerHTML='<div class="extraction-header">'+thumbHtml+'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(ext.file.name)+'</div><span class="status-pill '+ext.status+'">'+statusLabels[ext.status]+'</span></div></div>'+(ext.status==='extracting'?'<div style="color:var(--text-secondary);font-size:13px;text-align:center;padding:1rem;">Analyzing with AI...</div>':'<div class="field-grid"><div class="field"><label>Vendor</label><input type="text" value="'+esc(d.vendor||'')+'" oninput="extractions['+i+'].data.vendor=this.value" /></div><div class="field"><label>Date</label><input type="date" value="'+(d.date||'')+'" oninput="extractions['+i+'].data.date=this.value" /></div><div class="field field-full"><label>Category</label><select onchange="extractions['+i+'].data.suggested_category=this.value">'+catOptions+'</select></div><div class="field field-full"><label>Line items <span style="font-weight:400;font-size:10px;color:var(--text-secondary);">desc · qty · unit price · line total</span></label><div>'+itemsHtml+'</div><button class="add-item-btn" onclick="addItem('+i+')">+ Add item</button></div><div class="field"><label>Subtotal</label><input type="number" value="'+(d.subtotal||0).toFixed(2)+'" step="0.01" oninput="extractions['+i+'].data.subtotal=parseFloat(this.value)||0" /></div><div class="field"><label>Tax</label><input type="number" value="'+(d.tax||0).toFixed(2)+'" step="0.01" oninput="extractions['+i+'].data.tax=parseFloat(this.value)||0" /></div><div class="field field-full"><label>Total</label><input type="number" value="'+(d.total||0).toFixed(2)+'" step="0.01" style="font-weight:500;" oninput="extractions['+i+'].data.total=parseFloat(this.value)||0" /></div><div class="field field-full"><label>Notes</label><textarea oninput="extractions['+i+'].data.notes=this.value">'+esc(d.notes||'')+'</textarea></div></div>');
+      container.appendChild(card);
+    });
+  }
+  function addItem(extIdx){extractions[extIdx].data.items.push({description:'',quantity:1,unit_price:0,line_total:0});renderExtractionCards();}
+  function esc(str){return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function addLog(msg,type){logs.push({msg,type:type||'info'});const el=document.getElementById('log-section');el.style.display='block';el.innerHTML=logs.slice(-20).map(l=>'<div class="log-entry '+l.type+'">'+l.msg+'</div>').join('');el.scrollTop=el.scrollHeight;}
+  async function gDriveRequest(path,method,body){const resp=await fetch('https://www.googleapis.com/drive/v3'+path,{method:method||'GET',headers:{'Authorization':'Bearer '+googleAccessToken,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return resp.json();}
+  async function gSheetsRequest(path,method,body){const resp=await fetch('https://sheets.googleapis.com/v4/spreadsheets'+path,{method:method||'GET',headers:{'Authorization':'Bearer '+googleAccessToken,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return resp.json();}
+  async function ensureYearFolder(){
+    if(yearFolderId)return yearFolderId;addLog('Looking for '+TAX_YEAR+' folder...','info');
+    const search=await gDriveRequest('/files?q='+encodeURIComponent('name="'+TAX_YEAR+'" and mimeType="application/vnd.google-apps.folder" and "'+FOLDER_ID+'" in parents and trashed=false')+'&fields=files(id,name)');
+    if(search.files&&search.files.length>0){yearFolderId=search.files[0].id;addLog('Found existing '+TAX_YEAR+' folder.','ok');return yearFolderId;}
+    addLog('Creating '+TAX_YEAR+' folder...','info');
+    const created=await gDriveRequest('/files','POST',{name:String(TAX_YEAR),mimeType:'application/vnd.google-apps.folder',parents:[FOLDER_ID]});
+    yearFolderId=created.id;addLog('Created '+TAX_YEAR+' folder.','ok');return yearFolderId;
+  }
+  async function ensureSheet(fid){
+    if(sheetId)return sheetId;const sheetName='Receipts '+TAX_YEAR;addLog('Looking for "'+sheetName+'" sheet...','info');
+    const search=await gDriveRequest('/files?q='+encodeURIComponent('name="'+sheetName+'" and mimeType="application/vnd.google-apps.spreadsheet" and "'+fid+'" in parents and trashed=false')+'&fields=files(id,name)');
+    if(search.files&&search.files.length>0){sheetId=search.files[0].id;addLog('Found existing sheet.','ok');return sheetId;}
+    addLog('Creating "'+sheetName+'" sheet...','info');
+    const created=await gSheetsRequest('','POST',{properties:{title:sheetName},sheets:[{properties:{title:'Receipts'}}]});
+    sheetId=created.spreadsheetId;
+    await gDriveRequest('/files/'+sheetId+'?addParents='+fid+'&removeParents=root&fields=id,parents','PATCH',{});
+    await gSheetsRequest('/'+sheetId+'/values/Receipts!A1:I1:append?valueInputOption=RAW','POST',{values:[['Date','Vendor','Category','Items Summary','Subtotal','Tax','Total','Notes','Image URL']]});
+    addLog('Created sheet "'+sheetName+'".','ok');return sheetId;
+  }
+  async function uploadFileToDrive(file,fid){
+    addLog('Uploading '+file.name+'...','info');const b64=await toBase64(file);
+    const boundary='-------314159265358979323846';const delimiter='\r\n--'+boundary+'\r\n';const closeDelimiter='\r\n--'+boundary+'--';
+    const metadata={name:file.name,parents:[fid]};
+    const multipartBody=delimiter+'Content-Type: application/json\r\n\r\n'+JSON.stringify(metadata)+delimiter+'Content-Type: '+file.type+'\r\nContent-Transfer-Encoding: base64\r\n\r\n'+b64+closeDelimiter;
+    const resp=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{method:'POST',headers:{'Authorization':'Bearer '+googleAccessToken,'Content-Type':'multipart/related; boundary="'+boundary+'"'},body:multipartBody});
+    const data=await resp.json();if(data.id)addLog('Uploaded: '+file.name,'ok');return data.webViewLink||null;
+  }
+  async function appendSheetRow(sid,record){
+    const itemsSummary=(record.items||[]).map(it=>(it.description||'item')+(it.quantity&&it.quantity!==1?' ×'+it.quantity:'')).join('; ');
+    const row=[record.date||'',record.vendor||'',record.suggested_category||'Other',itemsSummary,(record.subtotal||0).toFixed(2),(record.tax||0).toFixed(2),(record.total||0).toFixed(2),record.notes||'',record.imageUrl||''];
+    await gSheetsRequest('/'+sid+'/values/Receipts!A:I:append?valueInputOption=RAW','POST',{values:[row]});addLog('Row added to sheet.','ok');
+  }
+  async function saveAll(){
+    if(!googleAccessToken){alert('Please connect your Google account in the Settings tab first.');switchTab('settings');return;}
+    const btn=document.getElementById('save-all-btn');btn.disabled=true;btn.textContent='Saving...';logs=[];
+    try{
+      const fid=await ensureYearFolder();const sid=await ensureSheet(fid);
+      for(let i=0;i<extractions.length;i++){
+        const ext=extractions[i];if(ext.status==='saved')continue;extractions[i].status='saving';renderExtractionCards();
+        let imageUrl=null;try{imageUrl=await uploadFileToDrive(ext.file,fid);}catch(e){addLog('Image upload failed: '+e.message,'err');}
+        const record=Object.assign({},ext.data,{imageUrl,fileName:ext.file.name,savedAt:new Date().toISOString()});
+        try{await appendSheetRow(sid,record);}catch(e){addLog('Sheet row failed: '+e.message,'err');}
+        savedReceipts.push(record);localStorage.setItem(STORAGE_KEY,JSON.stringify(savedReceipts));extractions[i].status='saved';renderExtractionCards();
+      }
+      btn.textContent='All saved!';pendingFiles=[];renderPreviews();populateCatFilter();
+    }catch(e){addLog('Save failed: '+e.message,'err');btn.textContent='Save failed — check settings';}
+    setTimeout(()=>{btn.textContent='Save all to Drive & Sheets';btn.disabled=false;},3000);
+  }
+  function populateCatFilter(){
+    const sel=document.getElementById('filter-cat');const current=sel.value;sel.innerHTML='<option value="">All categories</option>';
+    const cats=[...new Set(savedReceipts.map(r=>r.suggested_category).filter(Boolean))].sort();
+    cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;if(c===current)o.selected=true;sel.appendChild(o);});
+  }
+  function clearFilters(){document.getElementById('filter-from').value='';document.getElementById('filter-to').value='';document.getElementById('filter-cat').value='';renderLedger();}
+  function getFiltered(){
+    const from=document.getElementById('filter-from').value;const to=document.getElementById('filter-to').value;const cat=document.getElementById('filter-cat').value;
+    return savedReceipts.filter(r=>{if(from&&r.date&&r.date<from)return false;if(to&&r.date&&r.date>to)return false;if(cat&&r.suggested_category!==cat)return false;return true;});
+  }
+  function renderLedger(){
+    populateCatFilter();const filtered=getFiltered();const el=document.getElementById('ledger-content');
+    if(!filtered.length){el.innerHTML='<div class="empty-state">No receipts saved yet. Upload and save some to see them here.</div>';return;}
+    const sorted=[...filtered].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    el.innerHTML='<table class="ledger-table"><thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Items</th><th style="text-align:right">Total</th><th>Image</th></tr></thead><tbody>'+
+      sorted.map(r=>{const colors=CAT_COLORS[r.suggested_category]||['#F1EFE8','#5F5E5A'];const itemStr=(r.items||[]).slice(0,2).map(it=>'<span class="qty-price">'+esc(it.description||'item')+(it.quantity&&it.quantity!==1?' ×'+it.quantity:'')+'</span>').join('<br>');
+        return '<tr><td style="font-family:var(--font-mono);font-size:12px;white-space:nowrap;">'+(r.date||'—')+'</td><td style="font-weight:500;">'+esc(r.vendor||'—')+'</td><td><span class="cat-badge" style="background:'+colors[0]+';color:'+colors[1]+'">'+esc(r.suggested_category||'Other')+'</span></td><td>'+(itemStr||'—')+'</td><td class="amount-cell">$'+(r.total||0).toFixed(2)+'</td><td class="link-cell">'+(r.imageUrl?'<a href="'+r.imageUrl+'" target="_blank">View</a>':'—')+'</td></tr>';
+      }).join('')+'</tbody></table>';
+  }
+  function renderSummary(){
+    const el=document.getElementById('summary-content');
+    if(!savedReceipts.length){el.innerHTML='<div class="empty-state">No receipts saved yet.</div>';return;}
+    const total=savedReceipts.reduce((s,r)=>s+(r.total||0),0);const taxTotal=savedReceipts.reduce((s,r)=>s+(r.tax||0),0);
+    const catTotals={};CATEGORIES.forEach(c=>{catTotals[c]=0;});savedReceipts.forEach(r=>{const c=r.suggested_category||'Other';catTotals[c]=(catTotals[c]||0)+(r.total||0);});
+    const maxAmt=Math.max(...Object.values(catTotals),1);
+    const catRows=CATEGORIES.filter(c=>catTotals[c]>0).sort((a,b)=>catTotals[b]-catTotals[a]).map(c=>{const pct=(catTotals[c]/maxAmt*100).toFixed(1);const colors=CAT_COLORS[c]||['#F1EFE8','#5F5E5A'];return '<div class="cat-row"><span class="cat-name"><span class="cat-badge" style="background:'+colors[0]+';color:'+colors[1]+'">'+c+'</span></span><div class="cat-bar-wrap"><div class="cat-bar" style="width:'+pct+'%"></div></div><span class="cat-amt">$'+catTotals[c].toFixed(2)+'</span></div>';}).join('');
+    el.innerHTML='<div class="summary-grid"><div class="summary-card"><div class="s-label">Total expenses</div><div class="s-value">$'+total.toFixed(2)+'</div></div><div class="summary-card"><div class="s-label">Receipts saved</div><div class="s-value">'+savedReceipts.length+'</div></div><div class="summary-card"><div class="s-label">Total tax paid</div><div class="s-value">$'+taxTotal.toFixed(2)+'</div></div><div class="summary-card"><div class="s-label">Tax year</div><div class="s-value">'+TAX_YEAR+'</div></div></div><div><div class="section-label">By category</div>'+(catRows||'<div style="color:var(--text-secondary);font-size:13px;">No data yet.</div>')+'</div>';
+  }
+</script>
+</body>
+</html>
