@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Receipt Tracker — LLC Tax Year</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -20,9 +20,9 @@
       --border-primary: rgba(0,0,0,0.28);
       --radius-md: 8px;
       --radius-lg: 12px;
-      --font-sans: 'Inter', system-ui, sans-serif;
+      --font-sans: 'DM Sans', system-ui, sans-serif;
       --font-mono: 'DM Mono', monospace;
-      --font-serif: 'Playfair Display', serif;
+      --font-serif: 'Fraunces', serif;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -471,22 +471,26 @@
   <div class="header">
     <div>
       <div class="header-title">Receipt Ledger</div>
-      <div class="header-sub" id="year-label">LLC · Tax Year 2026</div>
+      <div class="header-sub" id="year-label">LLC · Tax Year</div>
+    </div>
+    <div>
+      <label for="year-selector" style="font-size:11px;color:var(--text-secondary);font-weight:500;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Tax year</label>
+      <select id="year-selector" onchange="setActiveYear(this.value)" style="font-size:13px;padding:6px 10px;border:0.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);font-family:var(--font-sans);"></select>
     </div>
   </div>
 
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('upload')">Upload</button>
-    <button class="tab" onclick="switchTab('review')">Review & Save</button>
-    <button class="tab" onclick="switchTab('ledger')">Ledger</button>
-    <button class="tab" onclick="switchTab('summary')">Summary</button>
-    <button class="tab" onclick="switchTab('settings')">Settings</button>
+  <div class="tabs" role="tablist" aria-label="App sections">
+    <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-upload" id="tabbtn-upload" onclick="switchTab('upload')">Upload</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-review" id="tabbtn-review" onclick="switchTab('review')">Review & Save</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-ledger" id="tabbtn-ledger" onclick="switchTab('ledger')">Ledger</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-summary" id="tabbtn-summary" onclick="switchTab('summary')">Summary</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-settings" id="tabbtn-settings" onclick="switchTab('settings')">Settings</button>
   </div>
 
   <div class="content">
 
     <!-- SETTINGS TAB -->
-    <div id="tab-settings" style="display:none">
+    <div id="tab-settings" role="tabpanel" aria-labelledby="tabbtn-settings" style="display:none">
       <div class="setup-card">
         <h3>AI Extraction</h3>
         <p>Receipt data is extracted via a secure Cloudflare Worker proxy — no API key needed here. The worker is already deployed and ready to use.</p>
@@ -505,13 +509,23 @@
       <div class="setup-card">
         <h3>Google OAuth</h3>
         <p>Authenticate with Google to save images to Drive and data to Sheets. Your credentials are never stored in this app.</p>
-        <button class="action-btn" onclick="initiateGoogleAuth()" style="margin-top:0;">Connect Google Account</button>
-        <div id="google-status" style="font-size:12px;color:var(--text-secondary);margin-top:0.5rem;font-family:var(--font-mono);"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="action-btn" onclick="initiateGoogleAuth()" style="margin-top:0;flex:1;min-width:200px;">Connect Google Account</button>
+          <button class="action-btn" onclick="disconnectGoogle()" style="margin-top:0;background:none;color:var(--text-primary);border:0.5px solid var(--border-secondary);min-width:120px;">Disconnect</button>
+        </div>
+        <div id="google-status" style="font-size:12px;color:var(--text-secondary);margin-top:0.75rem;font-family:var(--font-mono);"></div>
+        <details style="margin-top:1rem;">
+          <summary style="font-size:12px;color:var(--text-secondary);cursor:pointer;">Advanced — override Client ID</summary>
+          <div class="field" style="margin-top:0.5rem;">
+            <label>Custom OAuth Client ID (optional)</label>
+            <input type="text" id="client-id-input" placeholder="Defaults to embedded production ID" oninput="saveSettings()" />
+          </div>
+        </details>
       </div>
     </div>
 
     <!-- UPLOAD TAB -->
-    <div id="tab-upload">
+    <div id="tab-upload" role="tabpanel" aria-labelledby="tabbtn-upload">
       <div class="upload-zone" id="dropzone"
         ondragover="event.preventDefault();this.classList.add('drag')"
         ondragleave="this.classList.remove('drag')"
@@ -534,7 +548,7 @@
     </div>
 
     <!-- REVIEW TAB -->
-    <div id="tab-review" style="display:none">
+    <div id="tab-review" role="tabpanel" aria-labelledby="tabbtn-review" style="display:none">
       <div id="extraction-cards"></div>
       <div id="log-section" class="log-section" style="display:none"></div>
       <button class="action-btn" id="save-all-btn" onclick="saveAll()" disabled style="margin-top:1rem;">
@@ -543,7 +557,7 @@
     </div>
 
     <!-- LEDGER TAB -->
-    <div id="tab-ledger" style="display:none">
+    <div id="tab-ledger" role="tabpanel" aria-labelledby="tabbtn-ledger" style="display:none">
       <div class="filters">
         <div class="field">
           <label>From</label>
@@ -561,13 +575,18 @@
         </div>
         <button class="filter-clear" onclick="clearFilters()">Clear</button>
       </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+        <button class="filter-clear" onclick="hydrateFromSheet()" style="height:auto;padding:6px 12px;align-self:auto;" title="Re-pull this year's receipts from the Google Sheet (useful after clearing browser data or switching devices).">Refresh from Sheet</button>
+        <button class="filter-clear" onclick="downloadCSV()" style="height:auto;padding:6px 12px;align-self:auto;">Export items CSV</button>
+        <button class="filter-clear" onclick="downloadCategorySummaryCSV()" style="height:auto;padding:6px 12px;align-self:auto;">Export category summary</button>
+      </div>
       <div class="table-wrap">
         <div id="ledger-content"></div>
       </div>
     </div>
 
     <!-- SUMMARY TAB -->
-    <div id="tab-summary" style="display:none">
+    <div id="tab-summary" role="tabpanel" aria-labelledby="tabbtn-summary" style="display:none">
       <div id="summary-content"></div>
     </div>
 
@@ -576,8 +595,14 @@
 
 <script>
   // ── CONFIG ──────────────────────────────────────────────
-  const TAX_YEAR = new Date().getFullYear();
-  const STORAGE_KEY = 'receipts_' + TAX_YEAR;
+  const CURRENT_YEAR = new Date().getFullYear();
+  let activeYear = CURRENT_YEAR;
+  function storageKeyFor(year) { return 'receipts_' + year; }
+  function yearFromDate(dateStr) {
+    if (!dateStr) return CURRENT_YEAR;
+    const m = /^(\d{4})/.exec(dateStr);
+    return m ? parseInt(m[1], 10) : CURRENT_YEAR;
+  }
   const SETTINGS_KEY = 'receipt_tracker_settings';
   const WORKER_URL = 'https://receipt-ai-proxy.hastingsbrendan.workers.dev/extract';
 
@@ -602,21 +627,72 @@
   // ── STATE ────────────────────────────────────────────────
   let pendingFiles = [];
   let extractions = [];
-  let savedReceipts = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  let savedReceipts = JSON.parse(localStorage.getItem(storageKeyFor(activeYear)) || '[]');
+  // Per-year cache of {folderId, sheetId} so switching years doesn't re-fetch
+  const yearResources = {};
   let yearFolderId = null;
   let sheetId = null;
   let logs = [];
+
+  function persistSavedReceipts() {
+    localStorage.setItem(storageKeyFor(activeYear), JSON.stringify(savedReceipts));
+  }
+  function refreshYearLabel() {
+    document.getElementById('year-label').textContent = 'LLC · Tax Year ' + activeYear;
+  }
+  function setActiveYear(year) {
+    if (yearResources[activeYear]) {
+      yearResources[activeYear] = { folderId: yearFolderId, sheetId };
+    } else if (yearFolderId || sheetId) {
+      yearResources[activeYear] = { folderId: yearFolderId, sheetId };
+    }
+    activeYear = parseInt(year, 10) || CURRENT_YEAR;
+    savedReceipts = JSON.parse(localStorage.getItem(storageKeyFor(activeYear)) || '[]');
+    const cached = yearResources[activeYear];
+    yearFolderId = cached ? cached.folderId : null;
+    sheetId = cached ? cached.sheetId : null;
+    refreshYearLabel();
+    populateCatFilter();
+    renderLedger();
+    // Auto-hydrate when switching years if connected and we don't have local data yet
+    if (googleAccessToken && savedReceipts.length === 0) {
+      hydrateFromSheet();
+    }
+  }
 
   let settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
   let FOLDER_ID = settings.folderId || '1T6Wa2u13H4RCEpTWR0VMOOTcUF8qxIjT';
   let googleAccessToken = settings.googleAccessToken || null;
 
   // ── INIT ─────────────────────────────────────────────────
-  document.getElementById('year-label').textContent = 'LLC · Tax Year ' + TAX_YEAR;
+  refreshYearLabel();
   document.getElementById('folder-id-input').value = FOLDER_ID;
+  const _clientInput = document.getElementById('client-id-input');
+  if (_clientInput) _clientInput.value = settings.googleClientId || '';
   if (googleAccessToken) document.getElementById('google-status').textContent = 'Google account connected.';
+  populateYearSelector();
   populateCatFilter();
   renderLedger();
+
+  function populateYearSelector() {
+    const sel = document.getElementById('year-selector');
+    if (!sel) return;
+    const known = new Set();
+    // Scan localStorage for any receipts_<year> keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const m = /^receipts_(\d{4})$/.exec(k || '');
+      if (m) known.add(parseInt(m[1], 10));
+    }
+    known.add(CURRENT_YEAR);
+    known.add(activeYear);
+    // Also include the prior year so users can still file
+    known.add(CURRENT_YEAR - 1);
+    const years = Array.from(known).sort((a, b) => b - a);
+    sel.innerHTML = years.map(y =>
+      '<option value="' + y + '"' + (y === activeYear ? ' selected' : '') + '>' + y + '</option>'
+    ).join('');
+  }
 
   // Handle OAuth callback token in URL hash
   (function checkOAuthCallback() {
@@ -631,42 +707,81 @@
         document.getElementById('google-status').textContent = 'Google account connected.';
         window.location.hash = '';
         switchTab('upload');
+        // Hydrate active year's ledger in the background — covers cleared-storage / new-device case
+        hydrateFromSheet();
       }
     }
   })();
+
+  // If already connected on load, hydrate quietly so the ledger reflects the sheet of record
+  if (googleAccessToken) {
+    setTimeout(() => { hydrateFromSheet(); }, 100);
+  }
 
   // ── SETTINGS ─────────────────────────────────────────────
   function saveSettings() {
     FOLDER_ID = document.getElementById('folder-id-input').value.trim() || '1T6Wa2u13H4RCEpTWR0VMOOTcUF8qxIjT';
     settings.folderId = FOLDER_ID;
+    const customClient = document.getElementById('client-id-input');
+    if (customClient) settings.googleClientId = customClient.value.trim();
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }
 
-  function initiateGoogleAuth() {
-    // Uses Google's implicit OAuth flow
-    // You need to register this app at console.cloud.google.com and get a client ID
-    const CLIENT_ID = settings.googleClientId || prompt('Enter your Google OAuth Client ID (from console.cloud.google.com):');
-    if (!CLIENT_ID) return;
-    settings.googleClientId = CLIENT_ID;
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  // Embedded production Google OAuth Client ID — falls back to user-supplied value if overridden in settings.
+  const DEFAULT_CLIENT_ID = '24717148747-qeaqm182dhgbun2akpons0c8gimqmv9k.apps.googleusercontent.com';
 
-    const redirectUri = window.location.href.split('#')[0];
+  function initiateGoogleAuth() {
+    const CLIENT_ID = (settings.googleClientId || '').trim() || DEFAULT_CLIENT_ID;
+    if (!CLIENT_ID) {
+      alert('Google OAuth Client ID is not configured. Add one in Settings.');
+      return;
+    }
+    const redirectUri = window.location.href.split('#')[0].split('?')[0];
     const scope = encodeURIComponent('https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets');
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}&prompt=consent`;
     window.location.href = authUrl;
   }
 
+  function disconnectGoogle() {
+    googleAccessToken = null;
+    delete settings.googleAccessToken;
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    yearFolderId = null;
+    sheetId = null;
+    document.getElementById('google-status').textContent = 'Disconnected.';
+  }
+
   // ── TABS ─────────────────────────────────────────────────
+  const TAB_NAMES = ['upload','review','ledger','summary','settings'];
   function switchTab(name) {
-    ['upload','review','ledger','summary','settings'].forEach(t => {
+    TAB_NAMES.forEach(t => {
       document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
     });
     document.querySelectorAll('.tab').forEach((btn, i) => {
-      btn.classList.toggle('active', ['upload','review','ledger','summary','settings'][i] === name);
+      const isActive = TAB_NAMES[i] === name;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      btn.tabIndex = isActive ? 0 : -1;
     });
     if (name === 'ledger') renderLedger();
     if (name === 'summary') renderSummary();
   }
+
+  // Keyboard navigation for tab list (Left/Right/Home/End)
+  document.querySelector('.tabs').addEventListener('keydown', (e) => {
+    const keys = ['ArrowLeft','ArrowRight','Home','End'];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+    const tabs = Array.from(document.querySelectorAll('.tab'));
+    const current = tabs.findIndex(t => t.getAttribute('aria-selected') === 'true');
+    let next = current;
+    if (e.key === 'ArrowLeft')  next = (current - 1 + tabs.length) % tabs.length;
+    if (e.key === 'ArrowRight') next = (current + 1) % tabs.length;
+    if (e.key === 'Home')       next = 0;
+    if (e.key === 'End')        next = tabs.length - 1;
+    switchTab(TAB_NAMES[next]);
+    tabs[next].focus();
+  });
 
   // ── FILE HANDLING ────────────────────────────────────────
   function handleDrop(e) {
@@ -675,11 +790,53 @@
     handleFiles(e.dataTransfer.files);
   }
 
-  function handleFiles(files) {
+  // Hard limits — Anthropic API caps base64 payload around 5MB.
+  const MAX_PDF_BYTES = 4.5 * 1024 * 1024;
+
+  async function sha256Hex(file) {
+    const buf = await file.arrayBuffer();
+    const digest = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function isDuplicateOfSaved(hash) {
+    // Scan ALL years, not just active — same receipt across years is unlikely but cheap to check
+    if (!hash) return null;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!/^receipts_\d{4}$/.test(k || '')) continue;
+      try {
+        const arr = JSON.parse(localStorage.getItem(k) || '[]');
+        const hit = arr.find(r => r.fileHash === hash);
+        if (hit) return { year: k.replace('receipts_', ''), record: hit };
+      } catch {}
+    }
+    return null;
+  }
+
+  async function handleFiles(files) {
     for (const f of files) {
-      if (!pendingFiles.find(p => p.name === f.name && p.size === f.size)) {
-        pendingFiles.push(f);
+      // Block oversize PDFs up front
+      if (f.type === 'application/pdf' && f.size > MAX_PDF_BYTES) {
+        alert('"' + f.name + '" is ' + (f.size / 1024 / 1024).toFixed(1) + ' MB. PDFs must be under ' + (MAX_PDF_BYTES / 1024 / 1024).toFixed(1) + ' MB. Please compress or split it.');
+        continue;
       }
+      // De-dupe within pending queue (name + size)
+      if (pendingFiles.find(p => p.name === f.name && p.size === f.size)) continue;
+      // De-dupe vs already-saved receipts via SHA-256 hash
+      try {
+        const hash = await sha256Hex(f);
+        const dup = isDuplicateOfSaved(hash);
+        if (dup) {
+          const ok = confirm('"' + f.name + '" looks identical to a receipt already saved for ' + dup.year + ' (' + (dup.record.vendor || 'unknown vendor') + ', $' + ((dup.record.biz_total ?? dup.record.total) || 0).toFixed(2) + '). Add it anyway?');
+          if (!ok) continue;
+        }
+        f._fileHash = hash;
+      } catch (e) {
+        // crypto.subtle is unavailable on http:// — degrade gracefully
+        console.warn('Hash failed:', e);
+      }
+      pendingFiles.push(f);
     }
     renderPreviews();
   }
@@ -943,7 +1100,9 @@
       html += '<div style="height:0.5px;background:var(--border-tertiary);margin:6px 0;"></div>';
       html += '<div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);margin-bottom:8px;">Business totals</div>';
       html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:3px;"><span>Business subtotal</span><span style="font-family:var(--font-mono);">$' + bizSubtotal.toFixed(2) + '</span></div>';
-      html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:3px;"><span>Tax (proportional)</span><span style="font-family:var(--font-mono);">$' + bizTax.toFixed(2) + '</span></div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:3px;" title="Tax is allocated proportionally to the business share of the subtotal. This assumes a uniform tax rate across all line items — if the receipt mixes taxable and tax-exempt items (e.g. groceries), edit the tax field manually.">'+
+        '<span>Tax (proportional) <span style="display:inline-block;width:13px;height:13px;line-height:13px;text-align:center;border:0.5px solid var(--border-secondary);border-radius:50%;font-size:9px;color:var(--text-secondary);cursor:help;">i</span></span>' +
+        '<span style="font-family:var(--font-mono);">$' + bizTax.toFixed(2) + '</span></div>';
       html += '<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;color:var(--text-primary);margin-top:4px;"><span>Business total</span><span style="font-family:var(--font-mono);">$' + bizTotal.toFixed(2) + '</span></div>';
     } else {
       html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:3px;"><span>Subtotal</span><span style="font-family:var(--font-mono);">$' + rawSubtotal.toFixed(2) + '</span></div>';
@@ -967,7 +1126,22 @@
     el.scrollTop = el.scrollHeight;
   }
 
+  // Auth-error class so we can detect expired tokens and prompt re-auth.
+  class GoogleAuthError extends Error {
+    constructor(msg) { super(msg); this.name = 'GoogleAuthError'; }
+  }
+
+  function handleAuthError() {
+    googleAccessToken = null;
+    delete settings.googleAccessToken;
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    const status = document.getElementById('google-status');
+    if (status) status.textContent = 'Session expired — please reconnect.';
+    addLog('Google session expired. Please reconnect in Settings.', 'err');
+  }
+
   async function gDriveRequest(path, method, body) {
+    if (!googleAccessToken) throw new GoogleAuthError('Not connected to Google.');
     const resp = await fetch('https://www.googleapis.com/drive/v3' + path, {
       method: method || 'GET',
       headers: {
@@ -976,10 +1150,15 @@
       },
       body: body ? JSON.stringify(body) : undefined
     });
+    if (resp.status === 401 || resp.status === 403) {
+      handleAuthError();
+      throw new GoogleAuthError('Google session expired (status ' + resp.status + ').');
+    }
     return resp.json();
   }
 
   async function gSheetsRequest(path, method, body) {
+    if (!googleAccessToken) throw new GoogleAuthError('Not connected to Google.');
     const resp = await fetch('https://sheets.googleapis.com/v4/spreadsheets' + path, {
       method: method || 'GET',
       headers: {
@@ -988,58 +1167,76 @@
       },
       body: body ? JSON.stringify(body) : undefined
     });
+    if (resp.status === 401 || resp.status === 403) {
+      handleAuthError();
+      throw new GoogleAuthError('Google session expired (status ' + resp.status + ').');
+    }
     return resp.json();
   }
 
-  async function ensureYearFolder() {
-    if (yearFolderId) return yearFolderId;
-    addLog('Looking for ' + TAX_YEAR + ' folder...', 'info');
+  // Per-year resource resolvers. Pass the year to write the receipt into.
+  async function ensureYearFolderFor(year) {
+    const cached = yearResources[year];
+    if (cached && cached.folderId) return cached.folderId;
+    addLog('Looking for ' + year + ' folder...', 'info');
     const search = await gDriveRequest(
-      '/files?q=' + encodeURIComponent('name="' + TAX_YEAR + '" and mimeType="application/vnd.google-apps.folder" and "' + FOLDER_ID + '" in parents and trashed=false') + '&fields=files(id,name)'
+      '/files?q=' + encodeURIComponent('name="' + year + '" and mimeType="application/vnd.google-apps.folder" and "' + FOLDER_ID + '" in parents and trashed=false') + '&fields=files(id,name)'
     );
+    let fid;
     if (search.files && search.files.length > 0) {
-      yearFolderId = search.files[0].id;
-      addLog('Found existing ' + TAX_YEAR + ' folder.', 'ok');
-      return yearFolderId;
+      fid = search.files[0].id;
+      addLog('Found existing ' + year + ' folder.', 'ok');
+    } else {
+      addLog('Creating ' + year + ' folder...', 'info');
+      const created = await gDriveRequest('/files', 'POST', {
+        name: String(year),
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [FOLDER_ID]
+      });
+      fid = created.id;
+      addLog('Created ' + year + ' folder.', 'ok');
     }
-    addLog('Creating ' + TAX_YEAR + ' folder...', 'info');
-    const created = await gDriveRequest('/files', 'POST', {
-      name: String(TAX_YEAR),
-      mimeType: 'application/vnd.google-apps.folder',
-      parents: [FOLDER_ID]
-    });
-    yearFolderId = created.id;
-    addLog('Created ' + TAX_YEAR + ' folder.', 'ok');
-    return yearFolderId;
+    yearResources[year] = Object.assign({}, yearResources[year], { folderId: fid });
+    if (year === activeYear) yearFolderId = fid;
+    return fid;
   }
 
-  async function ensureSheet(fid) {
-    if (sheetId) return sheetId;
-    const sheetName = 'Receipts ' + TAX_YEAR;
+  async function ensureSheetFor(year, fid) {
+    const cached = yearResources[year];
+    if (cached && cached.sheetId) return cached.sheetId;
+    const sheetName = 'Receipts ' + year;
     addLog('Looking for "' + sheetName + '" sheet...', 'info');
     const search = await gDriveRequest(
       '/files?q=' + encodeURIComponent('name="' + sheetName + '" and mimeType="application/vnd.google-apps.spreadsheet" and "' + fid + '" in parents and trashed=false') + '&fields=files(id,name)'
     );
+    let sid;
     if (search.files && search.files.length > 0) {
-      sheetId = search.files[0].id;
+      sid = search.files[0].id;
       addLog('Found existing sheet.', 'ok');
-      return sheetId;
+    } else {
+      addLog('Creating "' + sheetName + '" sheet...', 'info');
+      const created = await gSheetsRequest('', 'POST', {
+        properties: { title: sheetName },
+        sheets: [{ properties: { title: 'Receipts' } }]
+      });
+      sid = created.spreadsheetId;
+      await gDriveRequest('/files/' + sid + '?addParents=' + fid + '&removeParents=root&fields=id,parents', 'PATCH', {});
+      await gSheetsRequest('/' + sid + ':batchUpdate', 'POST', {
+        requests: [{ addSheet: { properties: { title: 'Items' } } }]
+      });
+      await gSheetsRequest('/' + sid + '/values/Items!A1:M1:append?valueInputOption=RAW', 'POST', {
+        values: [['Date','Vendor','Category','Receipt ID','Item Description','Qty','Unit Price','Line Total','Item Tax','Item Biz Total','Type','Notes','Image URL']]
+      });
+      addLog('Created sheet "' + sheetName + '".', 'ok');
     }
-    addLog('Creating "' + sheetName + '" sheet...', 'info');
-    const created = await gSheetsRequest('', 'POST', {
-      properties: { title: sheetName },
-      sheets: [{ properties: { title: 'Receipts' } }]
-    });
-    sheetId = created.spreadsheetId;
-    // Move to year folder
-    await gDriveRequest('/files/' + sheetId + '?addParents=' + fid + '&removeParents=root&fields=id,parents', 'PATCH', {});
-    // Add header row
-    await gSheetsRequest('/' + sheetId + '/values/Receipts!A1:I1:append?valueInputOption=RAW', 'POST', {
-      values: [['Date','Vendor','Category','Business Items','Biz Subtotal','Biz Tax','Biz Total','Notes','Personal Items','Image URL']]
-    });
-    addLog('Created sheet "' + sheetName + '".', 'ok');
-    return sheetId;
+    yearResources[year] = Object.assign({}, yearResources[year], { sheetId: sid });
+    if (year === activeYear) sheetId = sid;
+    return sid;
   }
+
+  // Convenience wrappers — default to active year (used by edit flow)
+  async function ensureYearFolder() { return ensureYearFolderFor(activeYear); }
+  async function ensureSheet(fid)   { return ensureSheetFor(activeYear, fid); }
 
   async function uploadFileToDrive(file, fid) {
     addLog('Uploading ' + file.name + '...', 'info');
@@ -1066,28 +1263,71 @@
     return data.webViewLink || null;
   }
 
-  async function appendSheetRow(sid, record) {
-    const bizItems = (record.items||[]).filter(it => !it.personal);
-    const personalItems = (record.items||[]).filter(it => it.personal);
-    const bizSummary = bizItems.map(it => (it.description||'item') + (it.quantity&&it.quantity!==1?' ×'+it.quantity:'')).join('; ');
-    const personalSummary = personalItems.map(it => (it.description||'item')).join('; ');
-    const bizSubtotal = record.biz_subtotal !== undefined ? record.biz_subtotal : bizItems.reduce((s,it) => s+(it.line_total||0), 0);
-    const bizTax = record.biz_tax !== undefined ? record.biz_tax : 0;
-    const bizTotal = record.biz_total !== undefined ? record.biz_total : bizSubtotal + bizTax;
-    const row = [
-      record.date || '',
-      record.vendor || '',
-      record.suggested_category || 'Other',
-      bizSummary,
-      bizSubtotal.toFixed(2),
-      bizTax.toFixed(2),
-      bizTotal.toFixed(2),
-      record.notes || '',
-      personalSummary || '',
-      record.imageUrl || ''
-    ];
-    await gSheetsRequest('/' + sid + '/values/Receipts!A:J:append?valueInputOption=RAW', 'POST', { values: [row] });
-    addLog('Row added to sheet.', 'ok');
+  // Append one row per line item. Returns the number of rows written.
+  async function appendItemRows(sid, record) {
+    const items = record.items || [];
+    const allSubtotal = items.reduce((s, it) => s + (it.line_total||0), 0);
+    const taxRate = allSubtotal > 0 ? (record.tax||0) / allSubtotal : 0;
+    const rows = items.map(it => {
+      const itemTax = (it.line_total||0) * taxRate;
+      const itemBizTotal = it.personal ? 0 : ((it.line_total||0) + itemTax);
+      return [
+        record.date || '',
+        record.vendor || '',
+        record.suggested_category || 'Other',
+        record.id || '',
+        it.description || '',
+        it.quantity !== undefined ? it.quantity : 1,
+        (it.unit_price||0).toFixed(2),
+        (it.line_total||0).toFixed(2),
+        itemTax.toFixed(2),
+        itemBizTotal.toFixed(2),
+        it.personal ? 'Personal' : 'Business',
+        record.notes || '',
+        record.imageUrl || ''
+      ];
+    });
+    if (!rows.length) return 0;
+    await gSheetsRequest('/' + sid + '/values/Items!A:M:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS', 'POST', { values: rows });
+    addLog(rows.length + ' item row(s) added to sheet.', 'ok');
+    return rows.length;
+  }
+
+  // Delete all rows for a receipt by ID, then re-append updated rows.
+  async function updateItemRows(sid, record) {
+    addLog('Updating sheet rows for receipt ' + record.id + '...', 'info');
+    try {
+      // Get all data to find matching rows
+      const resp = await gSheetsRequest('/' + sid + '/values/Items!A:M', 'GET');
+      const rows = resp.values || [];
+      // Column D (index 3) is the receipt ID
+      const idxToDelete = [];
+      rows.forEach((row, i) => {
+        if (i === 0) return; // skip header
+        if (row[3] === record.id) idxToDelete.push(i);
+      });
+      if (idxToDelete.length > 0) {
+        // Build batchUpdate delete requests (delete from bottom up to preserve indices)
+        const deleteRequests = idxToDelete.reverse().map(rowIdx => ({
+          deleteDimension: {
+            range: { sheetId: 0, dimension: 'ROWS', startIndex: rowIdx, endIndex: rowIdx + 1 }
+          }
+        }));
+        // Need the Items sheet ID — get it
+        const meta = await gSheetsRequest('/' + sid + '?fields=sheets.properties', 'GET');
+        const itemsSheet = (meta.sheets || []).find(s => s.properties.title === 'Items');
+        const itemsSheetId = itemsSheet ? itemsSheet.properties.sheetId : 0;
+        const fixedRequests = idxToDelete.map(rowIdx => ({
+          deleteDimension: {
+            range: { sheetId: itemsSheetId, dimension: 'ROWS', startIndex: rowIdx, endIndex: rowIdx + 1 }
+          }
+        }));
+        await gSheetsRequest('/' + sid + ':batchUpdate', 'POST', { requests: fixedRequests });
+      }
+    } catch(e) {
+      addLog('Row delete warning: ' + e.message, 'err');
+    }
+    await appendItemRows(sid, record);
   }
 
   async function saveAll() {
@@ -1101,58 +1341,287 @@
     btn.textContent = 'Saving...';
     logs = [];
 
-    try {
-      const fid = await ensureYearFolder();
-      const sid = await ensureSheet(fid);
+    let anyFailures = false;
 
-      for (let i = 0; i < extractions.length; i++) {
-        const ext = extractions[i];
-        if (ext.status === 'saved') continue;
-        extractions[i].status = 'saving';
+    for (let i = 0; i < extractions.length; i++) {
+      const ext = extractions[i];
+      if (ext.status === 'saved') continue;
+      extractions[i].status = 'saving';
+      renderExtractionCards();
+
+      const d = ext.data;
+      // #6: route by receipt date, not page-load year
+      const recYear = yearFromDate(d.date);
+
+      let fid, sid;
+      try {
+        fid = await ensureYearFolderFor(recYear);
+        sid = await ensureSheetFor(recYear, fid);
+      } catch(e) {
+        anyFailures = true;
+        extractions[i].status = 'error';
+        extractions[i].error = e.message;
+        addLog('Setup failed for ' + recYear + ': ' + e.message, 'err');
         renderExtractionCards();
-
-        let imageUrl = null;
-        try {
-          imageUrl = await uploadFileToDrive(ext.file, fid);
-        } catch(e) {
-          addLog('Image upload failed: ' + e.message, 'err');
-        }
-
-        // Compute biz totals if not already set
-        const d = ext.data;
-        const allItems = d.items || [];
-        const rawSubtotal = allItems.reduce((s, it) => s + (it.line_total||0), 0);
-        const bizSubtotal = d.biz_subtotal !== undefined ? d.biz_subtotal : allItems.filter(it => !it.personal).reduce((s, it) => s + (it.line_total||0), 0);
-        const taxRate = rawSubtotal > 0 ? (d.tax||0) / rawSubtotal : 0;
-        const bizTax = d.biz_tax !== undefined ? d.biz_tax : bizSubtotal * taxRate;
-        const bizTotal = bizSubtotal + bizTax;
-        const record = Object.assign({}, d, {
-          biz_subtotal: bizSubtotal,
-          biz_tax: bizTax,
-          biz_total: bizTotal,
-          imageUrl, fileName: ext.file.name, savedAt: new Date().toISOString()
-        });
-        try {
-          await appendSheetRow(sid, record);
-        } catch(e) {
-          addLog('Sheet row failed: ' + e.message, 'err');
-        }
-
-        savedReceipts.push(record);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedReceipts));
-        extractions[i].status = 'saved';
-        renderExtractionCards();
+        if (e instanceof GoogleAuthError) break;  // stop the loop — user must reconnect
+        continue;
       }
 
+      // #5: only mark saved when BOTH image upload AND sheet append succeed.
+      // Otherwise, do not push to savedReceipts — user can retry the same file.
+      let imageUrl = null;
+      try {
+        imageUrl = await uploadFileToDrive(ext.file, fid);
+      } catch(e) {
+        anyFailures = true;
+        extractions[i].status = 'error';
+        extractions[i].error = 'Image upload failed: ' + e.message;
+        addLog('Image upload failed: ' + e.message, 'err');
+        renderExtractionCards();
+        if (e instanceof GoogleAuthError) break;
+        continue;
+      }
+
+      const allItems = d.items || [];
+      const rawSubtotal = allItems.reduce((s, it) => s + (it.line_total||0), 0);
+      const bizSubtotal = d.biz_subtotal !== undefined ? d.biz_subtotal : allItems.filter(it => !it.personal).reduce((s, it) => s + (it.line_total||0), 0);
+      const taxRate = rawSubtotal > 0 ? (d.tax||0) / rawSubtotal : 0;
+      const bizTax = d.biz_tax !== undefined ? d.biz_tax : bizSubtotal * taxRate;
+      const bizTotal = bizSubtotal + bizTax;
+      const record = Object.assign({}, d, {
+        id: 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+        biz_subtotal: bizSubtotal,
+        biz_tax: bizTax,
+        biz_total: bizTotal,
+        imageUrl,
+        fileName: ext.file.name,
+        fileHash: ext.file._fileHash || null,
+        taxYear: recYear,
+        savedAt: new Date().toISOString()
+      });
+
+      try {
+        await appendItemRows(sid, record);
+      } catch(e) {
+        anyFailures = true;
+        // Sheet append failed — orphaned image in Drive. Mark error, do NOT persist locally.
+        extractions[i].status = 'error';
+        extractions[i].error = 'Sheet append failed (image uploaded but row not written): ' + e.message;
+        addLog('Sheet append failed: ' + e.message, 'err');
+        renderExtractionCards();
+        if (e instanceof GoogleAuthError) break;
+        continue;
+      }
+
+      // Both succeeded — persist to the right year's storage
+      const targetKey = storageKeyFor(recYear);
+      const existing = JSON.parse(localStorage.getItem(targetKey) || '[]');
+      existing.push(record);
+      localStorage.setItem(targetKey, JSON.stringify(existing));
+      if (recYear === activeYear) savedReceipts = existing;
+
+      extractions[i].status = 'saved';
+      renderExtractionCards();
+    }
+
+    if (anyFailures) {
+      btn.textContent = 'Some failed — see status above';
+    } else {
       btn.textContent = 'All saved!';
       pendingFiles = [];
       renderPreviews();
-      populateCatFilter();
-    } catch(e) {
-      addLog('Save failed: ' + e.message, 'err');
-      btn.textContent = 'Save failed — check settings';
     }
+    populateYearSelector();
+    populateCatFilter();
+    renderLedger();
     setTimeout(() => { btn.textContent = 'Save all to Drive & Sheets'; btn.disabled = false; }, 3000);
+  }
+
+  // ── HYDRATE FROM SHEETS ──────────────────────────────────
+  // On Connect, pull the active year's sheet and reconstruct savedReceipts
+  // in case localStorage was cleared on this device.
+  async function hydrateFromSheet() {
+    if (!googleAccessToken) return;
+    try {
+      const fid = await ensureYearFolderFor(activeYear);
+      const sid = await ensureSheetFor(activeYear, fid);
+      const resp = await gSheetsRequest('/' + sid + '/values/Items!A:M', 'GET');
+      const rows = resp.values || [];
+      if (rows.length < 2) return;
+      // Header: Date,Vendor,Category,Receipt ID,Item Description,Qty,Unit Price,Line Total,Item Tax,Item Biz Total,Type,Notes,Image URL
+      const grouped = {};
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const id = row[3];
+        if (!id) continue;
+        if (!grouped[id]) {
+          grouped[id] = {
+            id,
+            date: row[0] || '',
+            vendor: row[1] || '',
+            suggested_category: row[2] || 'Other',
+            notes: row[11] || '',
+            imageUrl: row[12] || null,
+            items: [],
+            tax: 0,
+            biz_subtotal: 0,
+            biz_tax: 0,
+            biz_total: 0,
+            taxYear: activeYear
+          };
+        }
+        const r = grouped[id];
+        const personal = (row[10] || '').toLowerCase() === 'personal';
+        const lineTotal = parseFloat(row[7]) || 0;
+        const itemTax = parseFloat(row[8]) || 0;
+        const itemBiz = parseFloat(row[9]) || 0;
+        r.items.push({
+          description: row[4] || '',
+          quantity: parseFloat(row[5]) || 1,
+          unit_price: parseFloat(row[6]) || 0,
+          line_total: lineTotal,
+          personal
+        });
+        r.tax += itemTax;
+        if (!personal) {
+          r.biz_subtotal += lineTotal;
+          r.biz_tax += itemTax;
+          r.biz_total += itemBiz;
+        }
+      }
+      // Merge: if local already has the receipt, keep local (newer); otherwise add from sheet
+      const remote = Object.values(grouped);
+      const known = new Set(savedReceipts.map(r => r.id));
+      const merged = savedReceipts.concat(remote.filter(r => !known.has(r.id)));
+      const added = merged.length - savedReceipts.length;
+      savedReceipts = merged;
+      persistSavedReceipts();
+      if (added > 0) addLog('Hydrated ' + added + ' receipt(s) from Sheet.', 'ok');
+      populateCatFilter();
+      renderLedger();
+    } catch (e) {
+      // Silent on auth — handleAuthError already logged it. Other errors get a log line.
+      if (!(e instanceof GoogleAuthError)) addLog('Hydrate from sheet failed: ' + e.message, 'err');
+    }
+  }
+
+  // ── DELETE RECEIPT ───────────────────────────────────────
+  async function deleteReceipt(id) {
+    const idx = savedReceipts.findIndex(r => r.id === id);
+    if (idx === -1) return;
+    const r = savedReceipts[idx];
+    const ok = confirm('Delete receipt from ' + (r.vendor || 'unknown') + ' (' + (r.date || '?') + ', $' + ((r.biz_total ?? r.total) || 0).toFixed(2) + ')?\n\nThis removes the row(s) from the Google Sheet but does NOT delete the image from Drive.');
+    if (!ok) return;
+    if (!googleAccessToken) {
+      alert('Connect Google account first to delete the row from the sheet.');
+      return;
+    }
+    try {
+      const recYear = r.taxYear || yearFromDate(r.date) || activeYear;
+      const fid = await ensureYearFolderFor(recYear);
+      const sid = await ensureSheetFor(recYear, fid);
+      // Reuse the row-delete logic from updateItemRows
+      const resp = await gSheetsRequest('/' + sid + '/values/Items!A:M', 'GET');
+      const rows = resp.values || [];
+      const idxToDelete = [];
+      rows.forEach((row, i) => {
+        if (i === 0) return;
+        if (row[3] === id) idxToDelete.push(i);
+      });
+      if (idxToDelete.length > 0) {
+        const meta = await gSheetsRequest('/' + sid + '?fields=sheets.properties', 'GET');
+        const itemsSheet = (meta.sheets || []).find(s => s.properties.title === 'Items');
+        const itemsSheetId = itemsSheet ? itemsSheet.properties.sheetId : 0;
+        // Delete bottom-up so indices stay valid
+        const reqs = idxToDelete.sort((a,b) => b-a).map(rowIdx => ({
+          deleteDimension: { range: { sheetId: itemsSheetId, dimension: 'ROWS', startIndex: rowIdx, endIndex: rowIdx + 1 } }
+        }));
+        await gSheetsRequest('/' + sid + ':batchUpdate', 'POST', { requests: reqs });
+      }
+      // Remove from local storage (the right year's bucket)
+      const targetKey = storageKeyFor(recYear);
+      const arr = JSON.parse(localStorage.getItem(targetKey) || '[]').filter(rr => rr.id !== id);
+      localStorage.setItem(targetKey, JSON.stringify(arr));
+      if (recYear === activeYear) savedReceipts = arr;
+      renderLedger();
+      addLog('Deleted receipt ' + id + '.', 'ok');
+    } catch (e) {
+      alert('Delete failed: ' + e.message);
+    }
+  }
+
+  // ── CSV EXPORT ───────────────────────────────────────────
+  function csvEscape(v) {
+    const s = v == null ? '' : String(v);
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function downloadCSV() {
+    if (!savedReceipts.length) {
+      alert('Nothing to export for ' + activeYear + '.');
+      return;
+    }
+    const header = ['Date','Vendor','Category','Receipt ID','Item Description','Qty','Unit Price','Line Total','Item Tax','Item Biz Total','Type','Notes','Image URL'];
+    const rows = [header];
+    savedReceipts.forEach(r => {
+      const items = r.items || [];
+      const sub = items.reduce((s, it) => s + (it.line_total || 0), 0);
+      const taxRate = sub > 0 ? (r.tax || 0) / sub : 0;
+      items.forEach(it => {
+        const itemTax = (it.line_total || 0) * taxRate;
+        const itemBiz = it.personal ? 0 : ((it.line_total || 0) + itemTax);
+        rows.push([
+          r.date || '',
+          r.vendor || '',
+          r.suggested_category || 'Other',
+          r.id || '',
+          it.description || '',
+          it.quantity != null ? it.quantity : 1,
+          (it.unit_price || 0).toFixed(2),
+          (it.line_total || 0).toFixed(2),
+          itemTax.toFixed(2),
+          itemBiz.toFixed(2),
+          it.personal ? 'Personal' : 'Business',
+          r.notes || '',
+          r.imageUrl || ''
+        ]);
+      });
+    });
+    const csv = rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'receipts_' + activeYear + '_items.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  }
+
+  function downloadCategorySummaryCSV() {
+    if (!savedReceipts.length) {
+      alert('Nothing to export for ' + activeYear + '.');
+      return;
+    }
+    const totals = {};
+    savedReceipts.forEach(r => {
+      const c = r.suggested_category || 'Other';
+      const amt = r.biz_total != null ? r.biz_total : (r.total || 0);
+      totals[c] = (totals[c] || 0) + amt;
+    });
+    const rows = [['Category', 'Business Total']];
+    Object.keys(totals).sort().forEach(c => rows.push([c, totals[c].toFixed(2)]));
+    const csv = rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'receipts_' + activeYear + '_summary.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   }
 
   // ── LEDGER ───────────────────────────────────────────────
@@ -1188,6 +1657,10 @@
     });
   }
 
+  // editingReceiptId tracks which receipt is open in the edit panel
+  let editingReceiptId = null;
+  let editData = null; // deep copy of the receipt being edited
+
   function renderLedger() {
     populateCatFilter();
     const filtered = getFiltered();
@@ -1197,10 +1670,52 @@
       return;
     }
     const sorted = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
-    el.innerHTML =
+
+    // If editing, show the edit panel above the table
+    let editPanel = '';
+    if (editingReceiptId) {
+      const r = editData;
+      const catOptions = CATEGORIES.map(c =>
+        '<option value="' + c + '"' + ((r.suggested_category||'Other')===c?' selected':'') + '>' + c + '</option>'
+      ).join('');
+      const items = r.items || [];
+      const itemsHtml = items.map((item, j) => {
+        const isP = item.personal === true;
+        return '<div style="display:grid;grid-template-columns:1fr 50px 68px 68px auto;gap:5px;margin-bottom:6px;align-items:center;opacity:' + (isP?'0.45':'1') + ';">' +
+          '<input type="text" value="' + esc(item.description||'') + '" oninput="editData.items[' + j + '].description=this.value" style="font-size:12px;' + (isP?'text-decoration:line-through;':'') + '" />' +
+          '<input type="number" value="' + (item.quantity??1) + '" min="0" step="any" oninput="editData.items[' + j + '].quantity=parseFloat(this.value)||0;editRecalc()" style="font-size:12px;" />' +
+          '<input type="number" value="' + ((item.unit_price??0).toFixed(2)) + '" min="0" step="0.01" oninput="editData.items[' + j + '].unit_price=parseFloat(this.value)||0;editRecalc()" style="font-size:12px;" />' +
+          '<input type="number" value="' + ((item.line_total??0).toFixed(2)) + '" min="0" step="0.01" oninput="editData.items[' + j + '].line_total=parseFloat(this.value)||0;editRecalc()" style="font-size:12px;" />' +
+          '<button onclick="editTogglePersonal(' + j + ')" style="font-size:11px;padding:3px 7px;border-radius:5px;border:0.5px solid ' + (isP?'#993556':'var(--border-secondary)') + ';background:' + (isP?'#FBEAF0':'none') + ';color:' + (isP?'#993556':'var(--text-secondary)') + ';cursor:pointer;white-space:nowrap;font-family:var(--font-sans);">' + (isP?'\u{1F464} Personal':'Personal?') + '</button>' +
+        '</div>';
+      }).join('');
+
+      editPanel = '<div style="border:1.5px solid var(--border-secondary);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem;background:var(--bg-primary);">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;">' +
+          '<span>Editing: ' + esc(r.vendor||'receipt') + '</span>' +
+          '<button onclick="cancelEdit()" style="font-size:12px;padding:4px 10px;border-radius:6px;border:0.5px solid var(--border-secondary);background:none;cursor:pointer;color:var(--text-secondary);font-family:var(--font-sans);">Cancel</button>' +
+        '</div>' +
+        '<div class="field-grid">' +
+          '<div class="field"><label>Vendor</label><input type="text" value="' + esc(r.vendor||'') + '" oninput="editData.vendor=this.value" /></div>' +
+          '<div class="field"><label>Date</label><input type="date" value="' + (r.date||'') + '" oninput="editData.date=this.value" /></div>' +
+          '<div class="field field-full"><label>Category</label><select onchange="editData.suggested_category=this.value">' + catOptions + '</select></div>' +
+          '<div class="field field-full"><label>Tax (receipt total)</label><input type="number" value="' + (r.tax||0).toFixed(2) + '" min="0" step="0.01" oninput="editData.tax=parseFloat(this.value)||0;editRecalc()" /></div>' +
+          '<div class="field field-full"><label>Line items <span style="font-weight:400;font-size:10px;color:var(--text-secondary);">desc · qty · unit price · line total</span></label>' +
+            '<div id="edit-items-container">' + itemsHtml + '</div>' +
+            '<button onclick="editAddItem()" class="add-item-btn">+ Add item</button>' +
+          '</div>' +
+          '<div class="field field-full" id="edit-totals-block">' + buildTotalsHtml(r, -1) + '</div>' +
+          '<div class="field field-full"><label>Notes</label><textarea oninput="editData.notes=this.value">' + esc(r.notes||'') + '</textarea></div>' +
+        '</div>' +
+        '<div id="edit-log" style="display:none" class="log-section"></div>' +
+        '<button onclick="saveEdit()" style="width:100%;margin-top:1rem;padding:0.75rem;background:var(--text-primary);color:var(--bg-primary);border:none;border-radius:var(--radius-md);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-sans);" id="save-edit-btn">Save changes to Drive & Sheets</button>' +
+      '</div>';
+    }
+
+    const tableHtml =
       '<table class="ledger-table">' +
         '<thead><tr>' +
-          '<th>Date</th><th>Vendor</th><th>Category</th><th>Business Items</th><th style="text-align:right">Biz Total</th><th>Personal?</th><th>Image</th>' +
+          '<th>Date</th><th>Vendor</th><th>Category</th><th>Business Items</th><th style="text-align:right">Biz Total</th><th>Personal?</th><th>Image</th><th></th>' +
         '</tr></thead>' +
         '<tbody>' +
         sorted.map(r => {
@@ -1212,7 +1727,8 @@
           const personalLabel = personalItems.length > 0
             ? '<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:#FBEAF0;color:#993556;font-family:var(--font-mono);">' + personalItems.length + ' item' + (personalItems.length>1?'s':'') + '</span>'
             : '—';
-          return '<tr>' +
+          const isEditing = editingReceiptId === r.id;
+          return '<tr style="' + (isEditing?'background:var(--bg-tertiary);':'') + '">' +
             '<td style="font-family:var(--font-mono);font-size:12px;white-space:nowrap;">' + (r.date||'—') + '</td>' +
             '<td style="font-weight:500;">' + esc(r.vendor||'—') + '</td>' +
             '<td><span class="cat-badge" style="background:' + colors[0] + ';color:' + colors[1] + '">' + esc(r.suggested_category||'Other') + '</span></td>' +
@@ -1220,10 +1736,120 @@
             '<td class="amount-cell">$' + bizTotal.toFixed(2) + '</td>' +
             '<td>' + personalLabel + '</td>' +
             '<td class="link-cell">' + (r.imageUrl ? '<a href="' + r.imageUrl + '" target="_blank">View</a>' : '—') + '</td>' +
+            '<td style="white-space:nowrap;"><button onclick="startEdit(\'' + (r.id||'') + '\')" style="font-size:11px;padding:3px 8px;border-radius:5px;border:0.5px solid var(--border-secondary);background:none;cursor:pointer;color:var(--text-secondary);font-family:var(--font-sans);">' + (isEditing?'Editing…':'Edit') + '</button> <button onclick="deleteReceipt(\'' + (r.id||'') + '\')" style="font-size:11px;padding:3px 8px;border-radius:5px;border:0.5px solid #993556;background:none;cursor:pointer;color:#993556;font-family:var(--font-sans);">Delete</button></td>' +
           '</tr>';
         }).join('') +
         '</tbody>' +
       '</table>';
+
+    el.innerHTML = editPanel + '<div class="table-wrap">' + tableHtml + '</div>';
+  }
+
+  function startEdit(id) {
+    const r = savedReceipts.find(r => r.id === id);
+    if (!r) return;
+    editingReceiptId = id;
+    editData = JSON.parse(JSON.stringify(r)); // deep copy
+    renderLedger();
+  }
+
+  function cancelEdit() {
+    editingReceiptId = null;
+    editData = null;
+    renderLedger();
+  }
+
+  function editTogglePersonal(j) {
+    editData.items[j].personal = !editData.items[j].personal;
+    editRecalc();
+    renderLedger();
+  }
+
+  function editAddItem() {
+    editData.items.push({description:'',quantity:1,unit_price:0,line_total:0,personal:false});
+    renderLedger();
+  }
+
+  function editRecalc() {
+    if (!editData) return;
+    const allItems = editData.items || [];
+    const rawSubtotal = allItems.reduce((s, it) => s + (it.line_total||0), 0);
+    const bizSubtotal = allItems.filter(it => !it.personal).reduce((s, it) => s + (it.line_total||0), 0);
+    const taxRate = rawSubtotal > 0 ? (editData.tax||0) / rawSubtotal : 0;
+    editData.biz_subtotal = bizSubtotal;
+    editData.biz_tax = bizSubtotal * taxRate;
+    editData.biz_total = editData.biz_subtotal + editData.biz_tax;
+    const block = document.getElementById('edit-totals-block');
+    if (block) block.innerHTML = buildTotalsHtml(editData, -1);
+  }
+
+  function editLog(msg, type) {
+    const el = document.getElementById('edit-log');
+    if (!el) return;
+    el.style.display = 'block';
+    el.innerHTML += '<div class="log-entry ' + (type||'info') + '">' + msg + '</div>';
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function saveEdit() {
+    if (!editData || !editingReceiptId) return;
+    if (!googleAccessToken) { alert('Please connect Google account in Settings first.'); return; }
+    const btn = document.getElementById('save-edit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    // Recompute biz totals
+    const allItems = editData.items || [];
+    const rawSubtotal = allItems.reduce((s, it) => s + (it.line_total||0), 0);
+    const bizSubtotal = allItems.filter(it => !it.personal).reduce((s, it) => s + (it.line_total||0), 0);
+    const taxRate = rawSubtotal > 0 ? (editData.tax||0) / rawSubtotal : 0;
+    editData.biz_subtotal = bizSubtotal;
+    editData.biz_tax = bizSubtotal * taxRate;
+    editData.biz_total = bizSubtotal + editData.biz_tax;
+    editData.updatedAt = new Date().toISOString();
+
+    try {
+      // Edit may change the receipt's date (and therefore its tax year). Use the new year.
+      const recYear = yearFromDate(editData.date) || activeYear;
+      const fid = await ensureYearFolderFor(recYear);
+      const sid = await ensureSheetFor(recYear, fid);
+      await updateItemRows(sid, editData);
+      editData.taxYear = recYear;
+
+      // Update localStorage. If the year changed, move the record across buckets.
+      const origYear = (savedReceipts.find(r => r.id === editingReceiptId)?.taxYear) || activeYear;
+      if (recYear !== origYear) {
+        // Remove from origYear bucket
+        const origKey = storageKeyFor(origYear);
+        const origArr = JSON.parse(localStorage.getItem(origKey) || '[]').filter(r => r.id !== editingReceiptId);
+        localStorage.setItem(origKey, JSON.stringify(origArr));
+        if (origYear === activeYear) savedReceipts = origArr;
+        // Append to recYear bucket
+        const newKey = storageKeyFor(recYear);
+        const newArr = JSON.parse(localStorage.getItem(newKey) || '[]');
+        newArr.push(editData);
+        localStorage.setItem(newKey, JSON.stringify(newArr));
+        if (recYear === activeYear) savedReceipts = newArr;
+      } else {
+        const idx = savedReceipts.findIndex(r => r.id === editingReceiptId);
+        if (idx !== -1) {
+          savedReceipts[idx] = editData;
+          persistSavedReceipts();
+        }
+      }
+
+      editLog('Saved successfully.', 'ok');
+      btn.textContent = 'Saved!';
+      setTimeout(() => {
+        editingReceiptId = null;
+        editData = null;
+        renderLedger();
+      }, 1200);
+    } catch(e) {
+      editLog('Save failed: ' + e.message, 'err');
+      btn.textContent = 'Save changes to Drive & Sheets';
+      btn.disabled = false;
+    }
   }
 
   // ── SUMMARY ──────────────────────────────────────────────
@@ -1265,7 +1891,11 @@
         '<div class="summary-card"><div class="s-label">Business tax</div><div class="s-value">$' + taxTotal.toFixed(2) + '</div></div>' +
         (personalCount > 0 ? '<div class="summary-card"><div class="s-label">Personal items excluded</div><div class="s-value" style="font-size:18px;color:#993556;">' + personalCount + '</div></div>' : '') +
       '</div>' +
-      '<div><div class="section-label">By category</div>' + (catRows || '<div style="color:var(--text-secondary);font-size:13px;">No data yet.</div>') + '</div>';
+      '<div><div class="section-label">By category</div>' + (catRows || '<div style="color:var(--text-secondary);font-size:13px;">No data yet.</div>') + '</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:1.5rem;padding-top:1rem;border-top:0.5px solid var(--border-tertiary);">' +
+        '<button class="filter-clear" onclick="downloadCSV()" style="height:auto;padding:8px 14px;align-self:auto;">Export items CSV</button>' +
+        '<button class="filter-clear" onclick="downloadCategorySummaryCSV()" style="height:auto;padding:8px 14px;align-self:auto;">Export category summary</button>' +
+      '</div>';
   }
 </script>
 </body>
