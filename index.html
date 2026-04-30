@@ -715,6 +715,73 @@
     });
   }
 
+  // Compress image to stay under Anthropic's 5MB base64 limit.
+  // Resizes down if needed, then reduces JPEG quality until under 4MB.
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      // PDFs can't be canvas-compressed — pass through as-is
+      if (!file.type.startsWith('image/')) {
+        toBase64(file).then(resolve).catch(reject);
+        return;
+      }
+
+      const MAX_BYTES = 4 * 1024 * 1024; // 4MB base64 target
+      const MAX_DIM = 2048; // max width or height in px
+
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+
+        let { width, height } = img;
+
+        // Scale down if either dimension exceeds MAX_DIM
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const scale = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Try progressively lower quality until under MAX_BYTES
+        let quality = 0.85;
+        const tryCompress = () => {
+          canvas.toBlob(blob => {
+            if (!blob) { reject(new Error('Canvas compression failed')); return; }
+            const reader = new FileReader();
+            reader.onload = () => {
+              const b64 = reader.result.split(',')[1];
+              if (b64.length <= MAX_BYTES || quality <= 0.3) {
+                resolve(b64);
+              } else {
+                quality -= 0.1;
+                tryCompress();
+              }
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          }, 'image/jpeg', quality);
+        };
+
+        tryCompress();
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        // Fall back to raw base64 if image can't be loaded into canvas
+        toBase64(file).then(resolve).catch(reject);
+      };
+
+      img.src = objectUrl;
+    });
+  }
+
   // ── AI EXTRACTION ────────────────────────────────────────
   async function startExtraction() {
     if (!pendingFiles.length) return;
@@ -734,8 +801,10 @@
       extractions[i].error = null;
       renderExtractionCards();
       try {
-        const b64 = await toBase64(extractions[i].file);
-        const mediaType = extractions[i].file.type || 'image/jpeg';
+        const isImg = extractions[i].file.type.startsWith('image/');
+        const b64 = await compressImage(extractions[i].file);
+        // compressImage always outputs JPEG for images; PDFs pass through unchanged
+        const mediaType = isImg ? 'image/jpeg' : (extractions[i].file.type || 'application/pdf');
 
         const resp = await fetch(WORKER_URL, {
           method: 'POST',
@@ -974,7 +1043,7 @@
 
   async function uploadFileToDrive(file, fid) {
     addLog('Uploading ' + file.name + '...', 'info');
-    const b64 = await toBase64(file);
+    const b64 = await compressImage(file);
     const boundary = '-------314159265358979323846';
     const delimiter = '\r\n--' + boundary + '\r\n';
     const closeDelimiter = '\r\n--' + boundary + '--';
