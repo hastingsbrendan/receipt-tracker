@@ -429,6 +429,35 @@
     .link-cell a { color: #185FA5; text-decoration: none; font-size: 12px; }
     .link-cell a:hover { text-decoration: underline; }
 
+    /* Connection banner — surfaces sync state at the top of the app */
+    .conn-banner {
+      padding: 0.625rem 1rem;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 0.5px solid var(--border-tertiary);
+      flex-wrap: wrap;
+    }
+    .conn-banner.warn   { background: #FAEEDA; color: #854F0B; }
+    .conn-banner.error  { background: #FCEBEB; color: #A32D2D; }
+    .conn-banner.info   { background: #E6F1FB; color: #185FA5; }
+    .conn-banner.ok     { background: #EAF3DE; color: #3B6D11; }
+    .conn-banner button {
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 0.5px solid currentColor;
+      background: rgba(255,255,255,0.6);
+      color: inherit;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      white-space: nowrap;
+    }
+    .conn-banner-msg { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+    .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
     .qty-price { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); }
 
     .section-label {
@@ -478,6 +507,7 @@
       <select id="year-selector" onchange="setActiveYear(this.value)" style="font-size:13px;padding:6px 10px;border:0.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);font-family:var(--font-sans);"></select>
     </div>
   </div>
+  <div id="connection-banner" class="conn-banner" role="status" aria-live="polite" style="display:none;"></div>
 
   <div class="tabs" role="tablist" aria-label="App sections">
     <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-upload" id="tabbtn-upload" onclick="switchTab('upload')">Upload</button>
@@ -651,13 +681,13 @@
     const cached = yearResources[activeYear];
     yearFolderId = cached ? cached.folderId : null;
     sheetId = cached ? cached.sheetId : null;
+    lastHydratedAt = null;  // each year tracks its own freshness
     refreshYearLabel();
     populateCatFilter();
     renderLedger();
-    // Auto-hydrate when switching years if connected and we don't have local data yet
-    if (googleAccessToken && savedReceipts.length === 0) {
-      hydrateFromSheet();
-    }
+    updateConnectionBanner();
+    // Always re-hydrate when switching years so we show sheet truth, not stale cache.
+    if (googleAccessToken) hydrateFromSheet();
   }
 
   let settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
@@ -673,6 +703,55 @@
   populateYearSelector();
   populateCatFilter();
   renderLedger();
+  updateConnectionBanner();
+
+  // Surface connection / sync state so users on mobile know whether the app is
+  // showing live data or a stale local cache.
+  function updateConnectionBanner(overrideMsg) {
+    const el = document.getElementById('connection-banner');
+    if (!el) return;
+    if (overrideMsg) {
+      el.className = 'conn-banner info';
+      el.style.display = 'flex';
+      el.innerHTML = '<div class="conn-banner-msg"><span class="conn-dot"></span><span>' + esc(overrideMsg) + '</span></div>';
+      return;
+    }
+    if (!googleAccessToken) {
+      el.className = 'conn-banner warn';
+      el.style.display = 'flex';
+      el.innerHTML =
+        '<div class="conn-banner-msg"><span class="conn-dot"></span><span>Not connected to Google — your saved receipts live in the Sheet, not here. Connect to load them.</span></div>' +
+        '<button onclick="initiateGoogleAuth()">Connect Google</button>';
+      return;
+    }
+    if (lastHydratedAt) {
+      const mins = Math.round((Date.now() - lastHydratedAt.getTime()) / 60000);
+      const when = mins < 1 ? 'just now' : (mins === 1 ? '1 min ago' : mins + ' min ago');
+      el.className = 'conn-banner ok';
+      el.style.display = 'flex';
+      el.innerHTML =
+        '<div class="conn-banner-msg"><span class="conn-dot"></span><span>Synced with Sheet · ' + when + '</span></div>' +
+        '<button onclick="hydrateFromSheet()">Refresh</button>';
+      return;
+    }
+    el.className = 'conn-banner info';
+    el.style.display = 'flex';
+    el.innerHTML =
+      '<div class="conn-banner-msg"><span class="conn-dot"></span><span>Connected · loading from Sheet…</span></div>' +
+      '<button onclick="hydrateFromSheet()">Refresh</button>';
+  }
+
+  // Auto-sync when the app comes back into focus (mobile users switching back
+  // from another app or tab). Throttled — at most once per 30s of refocus.
+  let lastFocusSync = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (!googleAccessToken) return;
+    const now = Date.now();
+    if (now - lastFocusSync < 30000) return;
+    lastFocusSync = now;
+    hydrateFromSheet({ silent: true });
+  });
 
   function populateYearSelector() {
     const sel = document.getElementById('year-selector');
@@ -744,11 +823,13 @@
 
   function disconnectGoogle() {
     googleAccessToken = null;
+    lastHydratedAt = null;
     delete settings.googleAccessToken;
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     yearFolderId = null;
     sheetId = null;
     document.getElementById('google-status').textContent = 'Disconnected.';
+    updateConnectionBanner();
   }
 
   // ── TABS ─────────────────────────────────────────────────
@@ -1133,11 +1214,13 @@
 
   function handleAuthError() {
     googleAccessToken = null;
+    lastHydratedAt = null;
     delete settings.googleAccessToken;
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     const status = document.getElementById('google-status');
     if (status) status.textContent = 'Session expired — please reconnect.';
     addLog('Google session expired. Please reconnect in Settings.', 'err');
+    updateConnectionBanner();
   }
 
   async function gDriveRequest(path, method, body) {
@@ -1438,71 +1521,80 @@
   }
 
   // ── HYDRATE FROM SHEETS ──────────────────────────────────
-  // On Connect, pull the active year's sheet and reconstruct savedReceipts
-  // in case localStorage was cleared on this device.
-  async function hydrateFromSheet() {
+  // The Google Sheet is the source of truth. This pulls the active year's sheet
+  // and REPLACES the local cache so all devices stay in sync.
+  let lastHydratedAt = null;
+  let hydrateInFlight = null;
+  async function hydrateFromSheet(opts) {
+    opts = opts || {};
     if (!googleAccessToken) return;
-    try {
-      const fid = await ensureYearFolderFor(activeYear);
-      const sid = await ensureSheetFor(activeYear, fid);
-      const resp = await gSheetsRequest('/' + sid + '/values/Items!A:M', 'GET');
-      const rows = resp.values || [];
-      if (rows.length < 2) return;
-      // Header: Date,Vendor,Category,Receipt ID,Item Description,Qty,Unit Price,Line Total,Item Tax,Item Biz Total,Type,Notes,Image URL
-      const grouped = {};
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        const id = row[3];
-        if (!id) continue;
-        if (!grouped[id]) {
-          grouped[id] = {
-            id,
-            date: row[0] || '',
-            vendor: row[1] || '',
-            suggested_category: row[2] || 'Other',
-            notes: row[11] || '',
-            imageUrl: row[12] || null,
-            items: [],
-            tax: 0,
-            biz_subtotal: 0,
-            biz_tax: 0,
-            biz_total: 0,
-            taxYear: activeYear
-          };
+    if (hydrateInFlight) return hydrateInFlight;
+    hydrateInFlight = (async () => {
+      try {
+        if (!opts.silent) updateConnectionBanner('Syncing…');
+        const fid = await ensureYearFolderFor(activeYear);
+        const sid = await ensureSheetFor(activeYear, fid);
+        const resp = await gSheetsRequest('/' + sid + '/values/Items!A:M', 'GET');
+        const rows = resp.values || [];
+        const grouped = {};
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          const id = row[3];
+          if (!id) continue;
+          if (!grouped[id]) {
+            grouped[id] = {
+              id,
+              date: row[0] || '',
+              vendor: row[1] || '',
+              suggested_category: row[2] || 'Other',
+              notes: row[11] || '',
+              imageUrl: row[12] || null,
+              items: [],
+              tax: 0,
+              biz_subtotal: 0,
+              biz_tax: 0,
+              biz_total: 0,
+              taxYear: activeYear
+            };
+          }
+          const r = grouped[id];
+          const personal = (row[10] || '').toLowerCase() === 'personal';
+          const lineTotal = parseFloat(row[7]) || 0;
+          const itemTax = parseFloat(row[8]) || 0;
+          const itemBiz = parseFloat(row[9]) || 0;
+          r.items.push({
+            description: row[4] || '',
+            quantity: parseFloat(row[5]) || 1,
+            unit_price: parseFloat(row[6]) || 0,
+            line_total: lineTotal,
+            personal
+          });
+          r.tax += itemTax;
+          if (!personal) {
+            r.biz_subtotal += lineTotal;
+            r.biz_tax += itemTax;
+            r.biz_total += itemBiz;
+          }
         }
-        const r = grouped[id];
-        const personal = (row[10] || '').toLowerCase() === 'personal';
-        const lineTotal = parseFloat(row[7]) || 0;
-        const itemTax = parseFloat(row[8]) || 0;
-        const itemBiz = parseFloat(row[9]) || 0;
-        r.items.push({
-          description: row[4] || '',
-          quantity: parseFloat(row[5]) || 1,
-          unit_price: parseFloat(row[6]) || 0,
-          line_total: lineTotal,
-          personal
-        });
-        r.tax += itemTax;
-        if (!personal) {
-          r.biz_subtotal += lineTotal;
-          r.biz_tax += itemTax;
-          r.biz_total += itemBiz;
+        // Sheet is source of truth — replace local cache entirely.
+        const remote = Object.values(grouped).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+        savedReceipts = remote;
+        persistSavedReceipts();
+        lastHydratedAt = new Date();
+        addLog('Synced ' + remote.length + ' receipt(s) from Sheet.', 'ok');
+        populateCatFilter();
+        renderLedger();
+        updateConnectionBanner();
+      } catch (e) {
+        if (!(e instanceof GoogleAuthError)) {
+          addLog('Sync failed: ' + e.message, 'err');
         }
+        updateConnectionBanner();
+      } finally {
+        hydrateInFlight = null;
       }
-      // Merge: if local already has the receipt, keep local (newer); otherwise add from sheet
-      const remote = Object.values(grouped);
-      const known = new Set(savedReceipts.map(r => r.id));
-      const merged = savedReceipts.concat(remote.filter(r => !known.has(r.id)));
-      const added = merged.length - savedReceipts.length;
-      savedReceipts = merged;
-      persistSavedReceipts();
-      if (added > 0) addLog('Hydrated ' + added + ' receipt(s) from Sheet.', 'ok');
-      populateCatFilter();
-      renderLedger();
-    } catch (e) {
-      // Silent on auth — handleAuthError already logged it. Other errors get a log line.
-      if (!(e instanceof GoogleAuthError)) addLog('Hydrate from sheet failed: ' + e.message, 'err');
-    }
+    })();
+    return hydrateInFlight;
   }
 
   // ── DELETE RECEIPT ───────────────────────────────────────
