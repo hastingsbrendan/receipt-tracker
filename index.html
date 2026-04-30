@@ -488,16 +488,15 @@
     <!-- SETTINGS TAB -->
     <div id="tab-settings" style="display:none">
       <div class="setup-card">
-        <h3>Anthropic API Key</h3>
-        <p>Required for AI receipt extraction. Get yours at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>. Your key is stored only in this browser.</p>
-        <div class="field">
-          <label>API Key</label>
-          <input type="password" id="api-key-input" placeholder="sk-ant-..." oninput="saveSettings()" />
+        <h3>AI Extraction</h3>
+        <p>Receipt data is extracted via a secure Cloudflare Worker proxy — no API key needed here. The worker is already deployed and ready to use.</p>
+        <div style="font-size:12px;font-family:var(--font-mono);color:var(--text-secondary);padding:8px 10px;background:var(--bg-tertiary);border-radius:6px;">
+          Worker: receipt-ai-proxy.hastingsbrendan.workers.dev
         </div>
       </div>
       <div class="setup-card">
         <h3>Google Drive Folder ID</h3>
-        <p>The parent folder where year subfolders and sheets will be created. Copy the ID from your Drive folder URL.</p>
+        <p>The parent folder where year subfolders and sheets will be created. Pre-configured for 1450 W Barry Taxes folder.</p>
         <div class="field">
           <label>Folder ID</label>
           <input type="text" id="folder-id-input" placeholder="1T6Wa2u13H4RCEpTW..." oninput="saveSettings()" />
@@ -505,7 +504,7 @@
       </div>
       <div class="setup-card">
         <h3>Google OAuth</h3>
-        <p>To save to Google Drive and Sheets, you need to authenticate with Google. This app uses Google's OAuth flow — your credentials are never stored here.</p>
+        <p>Authenticate with Google to save images to Drive and data to Sheets. Your credentials are never stored in this app.</p>
         <button class="action-btn" onclick="initiateGoogleAuth()" style="margin-top:0;">Connect Google Account</button>
         <div id="google-status" style="font-size:12px;color:var(--text-secondary);margin-top:0.5rem;font-family:var(--font-mono);"></div>
       </div>
@@ -580,6 +579,7 @@
   const TAX_YEAR = new Date().getFullYear();
   const STORAGE_KEY = 'receipts_' + TAX_YEAR;
   const SETTINGS_KEY = 'receipt_tracker_settings';
+  const WORKER_URL = 'https://receipt-ai-proxy.hastingsbrendan.workers.dev/extract';
 
   const CATEGORIES = [
     'Meals & Entertainment','Travel','Office Supplies',
@@ -608,13 +608,11 @@
   let logs = [];
 
   let settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-  let ANTHROPIC_API_KEY = settings.apiKey || '';
   let FOLDER_ID = settings.folderId || '1T6Wa2u13H4RCEpTWR0VMOOTcUF8qxIjT';
   let googleAccessToken = settings.googleAccessToken || null;
 
   // ── INIT ─────────────────────────────────────────────────
   document.getElementById('year-label').textContent = 'LLC · Tax Year ' + TAX_YEAR;
-  document.getElementById('api-key-input').value = ANTHROPIC_API_KEY;
   document.getElementById('folder-id-input').value = FOLDER_ID;
   if (googleAccessToken) document.getElementById('google-status').textContent = 'Google account connected.';
   populateCatFilter();
@@ -639,9 +637,7 @@
 
   // ── SETTINGS ─────────────────────────────────────────────
   function saveSettings() {
-    ANTHROPIC_API_KEY = document.getElementById('api-key-input').value.trim();
     FOLDER_ID = document.getElementById('folder-id-input').value.trim() || '1T6Wa2u13H4RCEpTWR0VMOOTcUF8qxIjT';
-    settings.apiKey = ANTHROPIC_API_KEY;
     settings.folderId = FOLDER_ID;
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }
@@ -722,11 +718,6 @@
   // ── AI EXTRACTION ────────────────────────────────────────
   async function startExtraction() {
     if (!pendingFiles.length) return;
-    if (!ANTHROPIC_API_KEY) {
-      alert('Please add your Anthropic API key in the Settings tab first.');
-      switchTab('settings');
-      return;
-    }
     extractions = pendingFiles.map(f => ({
       file: f,
       status: 'extracting',
@@ -744,57 +735,28 @@
       renderExtractionCards();
       try {
         const b64 = await toBase64(extractions[i].file);
-        const isImg = extractions[i].file.type.startsWith('image/');
-        const mediaType = isImg ? extractions[i].file.type : 'application/pdf';
+        const mediaType = extractions[i].file.type || 'image/jpeg';
 
-        const contentBlock = isImg
-          ? { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } }
-          : { type: 'document', source: { type: 'base64', media_type: mediaType, data: b64 } };
-
-        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        const resp = await fetch(WORKER_URL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-calls': 'true'
-          },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
-            max_tokens: 1000,
-            messages: [{
-              role: 'user',
-              content: [
-                contentBlock,
-                { type: 'text', text: 'Extract receipt/invoice data and return ONLY valid JSON with these exact keys:\n{\n  "vendor": "string",\n  "date": "YYYY-MM-DD",\n  "items": [{"description": "string", "quantity": number, "unit_price": number, "line_total": number}],\n  "subtotal": number,\n  "tax": number,\n  "total": number,\n  "suggested_category": "one of: Meals & Entertainment, Travel, Office Supplies, Software & Subscriptions, Professional Services, Utilities, Equipment, Marketing & Advertising, Other",\n  "notes": "string or empty string"\n}\nIf a field is unknown use null. Return ONLY the JSON, no markdown, no explanation.' }
-              ]
-            }]
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: b64, mediaType }),
         });
 
         const d = await resp.json();
 
-        // Check for API-level errors (auth failure, invalid model, rate limit, etc.)
         if (d.error) {
-          throw new Error('API error: ' + (d.error.message || JSON.stringify(d.error)));
+          throw new Error(d.error);
         }
-        if (!d.content || d.content.length === 0) {
-          throw new Error('Empty response from API. Raw: ' + JSON.stringify(d));
-        }
-
-        const text = d.content.find(c => c.type === 'text')?.text || '';
-        if (!text) {
-          throw new Error('No text content in API response: ' + JSON.stringify(d.content));
+        if (!d.result) {
+          throw new Error('No result returned from worker. Response: ' + JSON.stringify(d));
         }
 
-        const clean = text.replace(/```json|```/g, '').trim();
-        extractions[i].data = JSON.parse(clean);
+        extractions[i].data = d.result;
         extractions[i].status = 'ready';
       } catch(e) {
-        // Show the actual error so it's debuggable
         extractions[i].error = e.message || String(e);
         extractions[i].status = 'error';
-        // Still provide a blank editable form so user can fill manually
         extractions[i].data = {
           vendor:'', date:'',
           items:[{description:'',quantity:1,unit_price:0,line_total:0}],
@@ -803,7 +765,6 @@
       }
       renderExtractionCards();
     }
-    // Enable save if at least one card is ready or error (user can still save manual data)
     document.getElementById('save-all-btn').disabled = false;
   }
 
@@ -819,14 +780,16 @@
         '<option value="' + c + '"' + ((d.suggested_category||'Other')===c?' selected':'') + '>' + c + '</option>'
       ).join('');
 
-      const itemsHtml = items.map((item, j) =>
-        '<div style="display:grid;grid-template-columns:1fr 60px 75px 75px;gap:6px;margin-bottom:6px;align-items:center;">' +
-          '<input type="text" value="' + esc(item.description||'') + '" placeholder="Description" oninput="extractions[' + i + '].data.items[' + j + '].description=this.value" style="font-size:12px;" />' +
-          '<input type="number" value="' + (item.quantity??1) + '" placeholder="Qty" min="0" step="any" oninput="extractions[' + i + '].data.items[' + j + '].quantity=parseFloat(this.value)||0" style="font-size:12px;" />' +
-          '<input type="number" value="' + ((item.unit_price??0).toFixed(2)) + '" placeholder="Unit $" min="0" step="0.01" oninput="extractions[' + i + '].data.items[' + j + '].unit_price=parseFloat(this.value)||0" style="font-size:12px;" />' +
-          '<input type="number" value="' + ((item.line_total??0).toFixed(2)) + '" placeholder="Total" min="0" step="0.01" oninput="extractions[' + i + '].data.items[' + j + '].line_total=parseFloat(this.value)||0" style="font-size:12px;" />' +
-        '</div>'
-      ).join('');
+      const itemsHtml = items.map((item, j) => {
+        const isPersonal = item.personal === true;
+        return '<div style="display:grid;grid-template-columns:1fr 50px 68px 68px auto;gap:5px;margin-bottom:6px;align-items:center;opacity:' + (isPersonal ? '0.45' : '1') + ';">' +
+          '<input type="text" value="' + esc(item.description||'') + '" placeholder="Description" oninput="extractions[' + i + '].data.items[' + j + '].description=this.value" style="font-size:12px;' + (isPersonal ? 'text-decoration:line-through;' : '') + '" />' +
+          '<input type="number" value="' + (item.quantity??1) + '" placeholder="Qty" min="0" step="any" oninput="extractions[' + i + '].data.items[' + j + '].quantity=parseFloat(this.value)||0;recalcTotals(' + i + ')" style="font-size:12px;" />' +
+          '<input type="number" value="' + ((item.unit_price??0).toFixed(2)) + '" placeholder="Unit $" min="0" step="0.01" oninput="extractions[' + i + '].data.items[' + j + '].unit_price=parseFloat(this.value)||0;recalcTotals(' + i + ')" style="font-size:12px;" />' +
+          '<input type="number" value="' + ((item.line_total??0).toFixed(2)) + '" placeholder="Line $" min="0" step="0.01" oninput="extractions[' + i + '].data.items[' + j + '].line_total=parseFloat(this.value)||0;recalcTotals(' + i + ')" style="font-size:12px;" />' +
+          '<button onclick="togglePersonal(' + i + ',' + j + ')" title="' + (isPersonal ? 'Mark as business' : 'Mark as personal') + '" style="font-size:11px;padding:3px 7px;border-radius:5px;border:0.5px solid ' + (isPersonal ? '#993556' : 'var(--border-secondary)') + ';background:' + (isPersonal ? '#FBEAF0' : 'none') + ';color:' + (isPersonal ? '#993556' : 'var(--text-secondary)') + ';cursor:pointer;white-space:nowrap;font-family:var(--font-sans);">' + (isPersonal ? '\u{1F464} Personal' : 'Personal?') + '</button>' +
+        '</div>';
+      }).join('');
 
       const card = document.createElement('div');
       card.className = 'extraction-card';
@@ -855,9 +818,7 @@
               '<div class="field field-full"><label>Category</label><select onchange="extractions[' + i + '].data.suggested_category=this.value">' + catOptions + '</select></div>' +
               '<div class="field field-full"><label>Line items <span style="font-weight:400;font-size:10px;color:var(--text-secondary);">desc · qty · unit price · line total</span></label><div>' + itemsHtml + '</div>' +
               '<button class="add-item-btn" onclick="addItem(' + i + ')">+ Add item</button></div>' +
-              '<div class="field"><label>Subtotal</label><input type="number" value="' + (d.subtotal||0).toFixed(2) + '" step="0.01" oninput="extractions[' + i + '].data.subtotal=parseFloat(this.value)||0" /></div>' +
-              '<div class="field"><label>Tax</label><input type="number" value="' + (d.tax||0).toFixed(2) + '" step="0.01" oninput="extractions[' + i + '].data.tax=parseFloat(this.value)||0" /></div>' +
-              '<div class="field field-full"><label>Total</label><input type="number" value="' + (d.total||0).toFixed(2) + '" step="0.01" style="font-weight:500;" oninput="extractions[' + i + '].data.total=parseFloat(this.value)||0" /></div>' +
+              '<div class="field field-full" id="totals-block-' + i + '">' + buildTotalsHtml(d, i) + '</div>' +
               '<div class="field field-full"><label>Notes</label><textarea oninput="extractions[' + i + '].data.notes=this.value">' + esc(d.notes||'') + '</textarea></div>' +
             '</div>'
         );
@@ -866,8 +827,62 @@
   }
 
   function addItem(extIdx) {
-    extractions[extIdx].data.items.push({description:'',quantity:1,unit_price:0,line_total:0});
+    extractions[extIdx].data.items.push({description:'',quantity:1,unit_price:0,line_total:0,personal:false});
     renderExtractionCards();
+  }
+
+  function togglePersonal(extIdx, itemIdx) {
+    const item = extractions[extIdx].data.items[itemIdx];
+    item.personal = !item.personal;
+    recalcTotals(extIdx);
+    renderExtractionCards();
+  }
+
+  // Recalculate business subtotal, proportional tax, and business total
+  function recalcTotals(extIdx) {
+    const d = extractions[extIdx].data;
+    if (!d) return;
+    const allItems = d.items || [];
+    const rawSubtotal = allItems.reduce((s, it) => s + (it.line_total||0), 0);
+    const bizSubtotal = allItems.filter(it => !it.personal).reduce((s, it) => s + (it.line_total||0), 0);
+    const taxRate = rawSubtotal > 0 ? (d.tax||0) / rawSubtotal : 0;
+    const bizTax = bizSubtotal * taxRate;
+    d.biz_subtotal = bizSubtotal;
+    d.biz_tax = bizTax;
+    d.biz_total = bizSubtotal + bizTax;
+    // Update totals display without re-rendering whole card
+    const block = document.getElementById('totals-block-' + extIdx);
+    if (block) block.innerHTML = buildTotalsHtml(d, extIdx);
+  }
+
+  function buildTotalsHtml(d, i) {
+    const allItems = d.items || [];
+    const rawSubtotal = allItems.reduce((s, it) => s + (it.line_total||0), 0);
+    const bizSubtotal = d.biz_subtotal !== undefined ? d.biz_subtotal : allItems.filter(it => !it.personal).reduce((s, it) => s + (it.line_total||0), 0);
+    const rawTax = d.tax || 0;
+    const taxRate = rawSubtotal > 0 ? rawTax / rawSubtotal : 0;
+    const bizTax = d.biz_tax !== undefined ? d.biz_tax : bizSubtotal * taxRate;
+    const bizTotal = bizSubtotal + bizTax;
+    const hasPersonal = allItems.some(it => it.personal);
+    const personalSubtotal = rawSubtotal - bizSubtotal;
+
+    let html = '<div style="background:var(--bg-secondary);border-radius:8px;padding:0.75rem 1rem;">';
+    if (hasPersonal) {
+      html += '<div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);margin-bottom:8px;">Receipt totals</div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:3px;"><span>Receipt subtotal</span><span style="font-family:var(--font-mono);">$' + rawSubtotal.toFixed(2) + '</span></div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:#993556;margin-bottom:3px;"><span>Personal items</span><span style="font-family:var(--font-mono);">− $' + personalSubtotal.toFixed(2) + '</span></div>';
+      html += '<div style="height:0.5px;background:var(--border-tertiary);margin:6px 0;"></div>';
+      html += '<div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);margin-bottom:8px;">Business totals</div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:3px;"><span>Business subtotal</span><span style="font-family:var(--font-mono);">$' + bizSubtotal.toFixed(2) + '</span></div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:3px;"><span>Tax (proportional)</span><span style="font-family:var(--font-mono);">$' + bizTax.toFixed(2) + '</span></div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;color:var(--text-primary);margin-top:4px;"><span>Business total</span><span style="font-family:var(--font-mono);">$' + bizTotal.toFixed(2) + '</span></div>';
+    } else {
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:3px;"><span>Subtotal</span><span style="font-family:var(--font-mono);">$' + rawSubtotal.toFixed(2) + '</span></div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:3px;"><span>Tax</span><span style="font-family:var(--font-mono);">$' + rawTax.toFixed(2) + '</span></div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;color:var(--text-primary);margin-top:4px;"><span>Total</span><span style="font-family:var(--font-mono);">$' + (rawSubtotal + rawTax).toFixed(2) + '</span></div>';
+    }
+    html += '</div>';
+    return html;
   }
 
   function esc(str) {
@@ -951,7 +966,7 @@
     await gDriveRequest('/files/' + sheetId + '?addParents=' + fid + '&removeParents=root&fields=id,parents', 'PATCH', {});
     // Add header row
     await gSheetsRequest('/' + sheetId + '/values/Receipts!A1:I1:append?valueInputOption=RAW', 'POST', {
-      values: [['Date','Vendor','Category','Items Summary','Subtotal','Tax','Total','Notes','Image URL']]
+      values: [['Date','Vendor','Category','Business Items','Biz Subtotal','Biz Tax','Biz Total','Notes','Personal Items','Image URL']]
     });
     addLog('Created sheet "' + sheetName + '".', 'ok');
     return sheetId;
@@ -983,19 +998,26 @@
   }
 
   async function appendSheetRow(sid, record) {
-    const itemsSummary = (record.items||[]).map(it => (it.description||'item') + (it.quantity&&it.quantity!==1?' ×'+it.quantity:'')).join('; ');
+    const bizItems = (record.items||[]).filter(it => !it.personal);
+    const personalItems = (record.items||[]).filter(it => it.personal);
+    const bizSummary = bizItems.map(it => (it.description||'item') + (it.quantity&&it.quantity!==1?' ×'+it.quantity:'')).join('; ');
+    const personalSummary = personalItems.map(it => (it.description||'item')).join('; ');
+    const bizSubtotal = record.biz_subtotal !== undefined ? record.biz_subtotal : bizItems.reduce((s,it) => s+(it.line_total||0), 0);
+    const bizTax = record.biz_tax !== undefined ? record.biz_tax : 0;
+    const bizTotal = record.biz_total !== undefined ? record.biz_total : bizSubtotal + bizTax;
     const row = [
       record.date || '',
       record.vendor || '',
       record.suggested_category || 'Other',
-      itemsSummary,
-      (record.subtotal||0).toFixed(2),
-      (record.tax||0).toFixed(2),
-      (record.total||0).toFixed(2),
+      bizSummary,
+      bizSubtotal.toFixed(2),
+      bizTax.toFixed(2),
+      bizTotal.toFixed(2),
       record.notes || '',
+      personalSummary || '',
       record.imageUrl || ''
     ];
-    await gSheetsRequest('/' + sid + '/values/Receipts!A:I:append?valueInputOption=RAW', 'POST', { values: [row] });
+    await gSheetsRequest('/' + sid + '/values/Receipts!A:J:append?valueInputOption=RAW', 'POST', { values: [row] });
     addLog('Row added to sheet.', 'ok');
   }
 
@@ -1027,7 +1049,20 @@
           addLog('Image upload failed: ' + e.message, 'err');
         }
 
-        const record = Object.assign({}, ext.data, { imageUrl, fileName: ext.file.name, savedAt: new Date().toISOString() });
+        // Compute biz totals if not already set
+        const d = ext.data;
+        const allItems = d.items || [];
+        const rawSubtotal = allItems.reduce((s, it) => s + (it.line_total||0), 0);
+        const bizSubtotal = d.biz_subtotal !== undefined ? d.biz_subtotal : allItems.filter(it => !it.personal).reduce((s, it) => s + (it.line_total||0), 0);
+        const taxRate = rawSubtotal > 0 ? (d.tax||0) / rawSubtotal : 0;
+        const bizTax = d.biz_tax !== undefined ? d.biz_tax : bizSubtotal * taxRate;
+        const bizTotal = bizSubtotal + bizTax;
+        const record = Object.assign({}, d, {
+          biz_subtotal: bizSubtotal,
+          biz_tax: bizTax,
+          biz_total: bizTotal,
+          imageUrl, fileName: ext.file.name, savedAt: new Date().toISOString()
+        });
         try {
           await appendSheetRow(sid, record);
         } catch(e) {
@@ -1096,18 +1131,25 @@
     el.innerHTML =
       '<table class="ledger-table">' +
         '<thead><tr>' +
-          '<th>Date</th><th>Vendor</th><th>Category</th><th>Items</th><th style="text-align:right">Total</th><th>Image</th>' +
+          '<th>Date</th><th>Vendor</th><th>Category</th><th>Business Items</th><th style="text-align:right">Biz Total</th><th>Personal?</th><th>Image</th>' +
         '</tr></thead>' +
         '<tbody>' +
         sorted.map(r => {
           const colors = CAT_COLORS[r.suggested_category] || ['#F1EFE8','#5F5E5A'];
-          const itemStr = (r.items||[]).slice(0,2).map(it => '<span class="qty-price">' + esc(it.description||'item') + (it.quantity&&it.quantity!==1?' ×'+it.quantity:'') + '</span>').join('<br>');
+          const bizItems = (r.items||[]).filter(it => !it.personal);
+          const personalItems = (r.items||[]).filter(it => it.personal);
+          const itemStr = bizItems.slice(0,2).map(it => '<span class="qty-price">' + esc(it.description||'item') + (it.quantity&&it.quantity!==1?' ×'+it.quantity:'') + '</span>').join('<br>');
+          const bizTotal = r.biz_total !== undefined ? r.biz_total : (r.total||0);
+          const personalLabel = personalItems.length > 0
+            ? '<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:#FBEAF0;color:#993556;font-family:var(--font-mono);">' + personalItems.length + ' item' + (personalItems.length>1?'s':'') + '</span>'
+            : '—';
           return '<tr>' +
             '<td style="font-family:var(--font-mono);font-size:12px;white-space:nowrap;">' + (r.date||'—') + '</td>' +
             '<td style="font-weight:500;">' + esc(r.vendor||'—') + '</td>' +
             '<td><span class="cat-badge" style="background:' + colors[0] + ';color:' + colors[1] + '">' + esc(r.suggested_category||'Other') + '</span></td>' +
             '<td>' + (itemStr||'—') + '</td>' +
-            '<td class="amount-cell">$' + (r.total||0).toFixed(2) + '</td>' +
+            '<td class="amount-cell">$' + bizTotal.toFixed(2) + '</td>' +
+            '<td>' + personalLabel + '</td>' +
             '<td class="link-cell">' + (r.imageUrl ? '<a href="' + r.imageUrl + '" target="_blank">View</a>' : '—') + '</td>' +
           '</tr>';
         }).join('') +
@@ -1122,13 +1164,15 @@
       el.innerHTML = '<div class="empty-state">No receipts saved yet.</div>';
       return;
     }
-    const total = savedReceipts.reduce((s,r) => s+(r.total||0), 0);
-    const taxTotal = savedReceipts.reduce((s,r) => s+(r.tax||0), 0);
+    const total = savedReceipts.reduce((s,r) => s+(r.biz_total !== undefined ? r.biz_total : r.total||0), 0);
+    const taxTotal = savedReceipts.reduce((s,r) => s+(r.biz_tax !== undefined ? r.biz_tax : r.tax||0), 0);
+    const personalCount = savedReceipts.reduce((s,r) => s+((r.items||[]).filter(it=>it.personal).length), 0);
     const catTotals = {};
     CATEGORIES.forEach(c => { catTotals[c] = 0; });
     savedReceipts.forEach(r => {
       const c = r.suggested_category || 'Other';
-      catTotals[c] = (catTotals[c]||0) + (r.total||0);
+      const bizAmt = r.biz_total !== undefined ? r.biz_total : (r.total||0);
+      catTotals[c] = (catTotals[c]||0) + bizAmt;
     });
     const maxAmt = Math.max(...Object.values(catTotals), 1);
 
@@ -1147,10 +1191,10 @@
 
     el.innerHTML =
       '<div class="summary-grid">' +
-        '<div class="summary-card"><div class="s-label">Total expenses</div><div class="s-value">$' + total.toFixed(2) + '</div></div>' +
+        '<div class="summary-card"><div class="s-label">Business expenses</div><div class="s-value">$' + total.toFixed(2) + '</div></div>' +
         '<div class="summary-card"><div class="s-label">Receipts saved</div><div class="s-value">' + savedReceipts.length + '</div></div>' +
-        '<div class="summary-card"><div class="s-label">Total tax paid</div><div class="s-value">$' + taxTotal.toFixed(2) + '</div></div>' +
-        '<div class="summary-card"><div class="s-label">Tax year</div><div class="s-value">' + TAX_YEAR + '</div></div>' +
+        '<div class="summary-card"><div class="s-label">Business tax</div><div class="s-value">$' + taxTotal.toFixed(2) + '</div></div>' +
+        (personalCount > 0 ? '<div class="summary-card"><div class="s-label">Personal items excluded</div><div class="s-value" style="font-size:18px;color:#993556;">' + personalCount + '</div></div>' : '') +
       '</div>' +
       '<div><div class="section-label">By category</div>' + (catRows || '<div style="color:var(--text-secondary);font-size:13px;">No data yet.</div>') + '</div>';
   }
