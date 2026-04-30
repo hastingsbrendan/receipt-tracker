@@ -1068,8 +1068,16 @@
       const btn = document.getElementById('bnav-' + t);
       if (btn) btn.classList.toggle('active', t === name);
     });
-    if (name === 'ledger') renderLedger();
-    if (name === 'summary') renderSummary();
+    if (name === 'ledger') {
+      renderLedger();
+      const stale = !lastHydratedAt || (Date.now() - lastHydratedAt.getTime() > 5 * 60000);
+      if (googleAccessToken && !hydrateInFlight && stale) hydrateFromSheet({ silent: true });
+    }
+    if (name === 'summary') {
+      renderSummary();
+      const stale = !lastHydratedAt || (Date.now() - lastHydratedAt.getTime() > 5 * 60000);
+      if (googleAccessToken && !hydrateInFlight && stale) hydrateFromSheet({ silent: true });
+    }
   }
 
   // ── CONFIRM SHEET (replaces native confirm()) ────────────
@@ -2024,7 +2032,15 @@
     const filtered = getFiltered();
     const el = document.getElementById('ledger-content');
     if (!filtered.length) {
-      el.innerHTML = '<div class="empty-state">No receipts saved yet. Upload and save some to see them here.</div>';
+      let emptyHtml;
+      if (!googleAccessToken) {
+        emptyHtml = '<div class="empty-state"><p style="margin-bottom:1rem;">Connect Google to load your receipts from the Sheet.</p><button class="action-btn" onclick="initiateGoogleAuth()" style="margin-top:0;max-width:280px;display:inline-block;">Connect Google</button></div>';
+      } else if (!lastHydratedAt) {
+        emptyHtml = '<div class="empty-state"><p style="margin-bottom:1rem;">Loading receipts from Sheet…</p><button class="filter-clear" onclick="hydrateFromSheet()" style="height:auto;padding:8px 14px;">Refresh</button></div>';
+      } else {
+        emptyHtml = '<div class="empty-state"><p style="margin-bottom:1rem;">No receipts found for ' + activeYear + '.</p><button class="filter-clear" onclick="hydrateFromSheet()" style="height:auto;padding:8px 14px;">Refresh from Sheet</button></div>';
+      }
+      el.innerHTML = emptyHtml;
       return;
     }
     const sorted = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
@@ -2242,7 +2258,15 @@
   function renderSummary() {
     const el = document.getElementById('summary-content');
     if (!savedReceipts.length) {
-      el.innerHTML = '<div class="empty-state">No receipts saved yet.</div>';
+      let emptyHtml;
+      if (!googleAccessToken) {
+        emptyHtml = '<div class="empty-state"><p style="margin-bottom:1rem;">Connect Google to load your receipts from the Sheet.</p><button class="action-btn" onclick="initiateGoogleAuth()" style="margin-top:0;max-width:280px;display:inline-block;">Connect Google</button></div>';
+      } else if (!lastHydratedAt) {
+        emptyHtml = '<div class="empty-state"><p style="margin-bottom:1rem;">Loading receipts from Sheet…</p><button class="filter-clear" onclick="hydrateFromSheet()" style="height:auto;padding:8px 14px;">Refresh</button></div>';
+      } else {
+        emptyHtml = '<div class="empty-state"><p style="margin-bottom:1rem;">No receipts found for ' + activeYear + '.</p><button class="filter-clear" onclick="hydrateFromSheet()" style="height:auto;padding:8px 14px;">Refresh from Sheet</button></div>';
+      }
+      el.innerHTML = emptyHtml;
       return;
     }
     const total = savedReceipts.reduce((s,r) => s+(r.biz_total !== undefined ? r.biz_total : r.total||0), 0);
