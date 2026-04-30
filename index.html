@@ -506,6 +506,63 @@
       gap: 8px;
     }
 
+    /* ── ITEM ROW (line-item grid, stacks on mobile) ────── */
+    .item-row {
+      display: grid;
+      grid-template-columns: 1fr 50px 68px 68px auto;
+      gap: 5px;
+      margin-bottom: 6px;
+      align-items: center;
+    }
+    .items-details > summary { list-style: none; cursor: pointer; user-select: none; }
+    .items-details > summary::-webkit-details-marker { display: none; }
+    .items-summary {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      margin-bottom: 6px;
+    }
+    .items-count { font-weight: 400; font-size: 10px; text-transform: none; letter-spacing: 0; }
+
+    /* ── FILTER TOGGLE (mobile only) ────────────────────── */
+    .filter-toggle { display: none; }
+
+    /* ── BOTTOM TAB NAV (mobile only) ───────────────────── */
+    .bottom-nav { display: none; }
+    .bnav-btn { flex: 1; border: none; background: none; cursor: pointer; font-family: var(--font-sans); }
+
+    /* ── CONFIRM BOTTOM SHEET ───────────────────────────── */
+    .confirm-sheet {
+      position: fixed; inset: 0; z-index: 200;
+      align-items: flex-end; display: none;
+    }
+    .confirm-sheet.open { display: flex; }
+    .confirm-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+    .confirm-panel {
+      position: relative; width: 100%; max-width: 680px; margin: 0 auto;
+      background: var(--bg-primary);
+      border-radius: 16px 16px 0 0;
+      padding: 1.25rem 1.5rem;
+      padding-bottom: max(1.25rem, calc(1rem + env(safe-area-inset-bottom, 0px)));
+      z-index: 1;
+      animation: slideUp 0.2s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .confirm-msg { font-size: 14px; line-height: 1.6; color: var(--text-primary); margin-bottom: 1.25rem; }
+    .confirm-actions { display: flex; flex-direction: column; gap: 8px; }
+    .confirm-btn {
+      width: 100%; padding: 0.75rem; border-radius: var(--radius-md);
+      font-size: 14px; font-weight: 500; cursor: pointer; font-family: var(--font-sans); border: none;
+    }
+    .confirm-ok { background: var(--text-primary); color: var(--bg-primary); }
+    .confirm-cancel { background: none; color: var(--text-secondary); border: 0.5px solid var(--border-secondary) !important; }
+
     /* ── MOBILE (≤ 639px) ───────────────────────────────── */
     @media (max-width: 639px) {
       /* Prevent iOS auto-zoom — inputs/selects must be ≥ 16px */
@@ -546,6 +603,53 @@
       .rc-actions { display: flex; gap: 8px; }
       .rc-actions button { flex: 1; min-height: 40px; border-radius: var(--radius-md); border: 0.5px solid var(--border-secondary); background: none; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text-secondary); font-family: var(--font-sans); }
       .rc-delete-btn { border-color: #993556 !important; color: #993556 !important; }
+
+      /* Compact header — title + year selector on one row */
+      .header { padding: 0.75rem 1rem; align-items: center; flex-wrap: nowrap; }
+      .header-sub { display: none; }
+      .year-lbl { display: none; }
+
+      /* Stacked item rows — description full width, then qty/unit$/total$ on row 2 */
+      .item-row { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto auto; gap: 5px 4px; }
+      .item-row > *:nth-child(1) { grid-column: 1 / span 3; grid-row: 1; }
+      .item-row > *:nth-child(2) { grid-column: 1; grid-row: 2; }
+      .item-row > *:nth-child(3) { grid-column: 2; grid-row: 2; }
+      .item-row > *:nth-child(4) { grid-column: 3; grid-row: 2; }
+      .item-row > *:nth-child(5) { grid-column: 1 / span 3; grid-row: 3; min-height: 36px; }
+
+      /* Collapsible filter panel on Ledger */
+      #filter-panel { display: none; }
+      .filter-toggle {
+        display: flex; align-items: center; justify-content: space-between;
+        width: 100%; padding: 0.75rem 0; background: none; border: none;
+        border-bottom: 0.5px solid var(--border-tertiary);
+        font-size: 14px; font-weight: 500; color: var(--text-primary);
+        cursor: pointer; font-family: var(--font-sans); margin-bottom: 0.75rem;
+      }
+      .filter-chevron { transition: transform 0.2s; flex-shrink: 0; }
+      .filter-toggle[aria-expanded="true"] .filter-chevron { transform: rotate(180deg); }
+
+      /* Bottom tab nav replaces the top tabs */
+      .tabs { display: none; }
+      .bottom-nav {
+        display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+        height: calc(56px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        background: var(--bg-primary);
+        border-top: 0.5px solid var(--border-secondary);
+        z-index: 100;
+      }
+      .bnav-btn {
+        flex: 1; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 3px;
+        font-size: 10px; font-weight: 500; color: var(--text-secondary);
+        padding: 0; transition: color 0.15s;
+      }
+      .bnav-btn.active { color: var(--text-primary); }
+      .bnav-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+      /* Content clears the bottom nav */
+      .content { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 1.5rem); }
     }
 
     /* API key setup */
@@ -570,7 +674,7 @@
       <div class="header-sub" id="year-label">LLC · Tax Year</div>
     </div>
     <div>
-      <label for="year-selector" style="font-size:11px;color:var(--text-secondary);font-weight:500;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Tax year</label>
+      <label class="year-lbl" for="year-selector" style="font-size:11px;color:var(--text-secondary);font-weight:500;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Tax year</label>
       <select id="year-selector" onchange="setActiveYear(this.value)" style="font-size:13px;padding:6px 10px;border:0.5px solid var(--border-secondary);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);font-family:var(--font-sans);"></select>
     </div>
   </div>
@@ -664,7 +768,11 @@
 
     <!-- LEDGER TAB -->
     <div id="tab-ledger" role="tabpanel" aria-labelledby="tabbtn-ledger" style="display:none">
-      <div class="filters">
+      <button class="filter-toggle" id="filter-toggle-btn" onclick="toggleFilters()" aria-expanded="false">
+        <span>Filters</span>
+        <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="filter-panel" class="filters">
         <div class="field">
           <label>From</label>
           <input type="date" id="filter-from" onchange="renderLedger()" />
@@ -696,6 +804,42 @@
       <div id="summary-content"></div>
     </div>
 
+  </div>
+
+  <!-- BOTTOM TAB NAV (visible on mobile only via CSS) -->
+  <nav class="bottom-nav" role="navigation" aria-label="App navigation">
+    <button class="bnav-btn active" id="bnav-upload" onclick="switchTab('upload')" aria-label="Upload">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span>Upload</span>
+    </button>
+    <button class="bnav-btn" id="bnav-review" onclick="switchTab('review')" aria-label="Review">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <span>Review</span>
+    </button>
+    <button class="bnav-btn" id="bnav-ledger" onclick="switchTab('ledger')" aria-label="Ledger">
+      <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      <span>Ledger</span>
+    </button>
+    <button class="bnav-btn" id="bnav-summary" onclick="switchTab('summary')" aria-label="Summary">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>Summary</span>
+    </button>
+    <button class="bnav-btn" id="bnav-settings" onclick="switchTab('settings')" aria-label="Settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </button>
+  </nav>
+
+  <!-- CONFIRM BOTTOM SHEET (replaces native confirm() dialogs) -->
+  <div id="confirm-sheet" class="confirm-sheet" role="dialog" aria-modal="true">
+    <div class="confirm-backdrop" onclick="confirmCancel()"></div>
+    <div class="confirm-panel">
+      <div id="confirm-msg" class="confirm-msg"></div>
+      <div class="confirm-actions">
+        <button class="confirm-btn confirm-ok" id="confirm-ok-btn">Confirm</button>
+        <button class="confirm-btn confirm-cancel" onclick="confirmCancel()">Cancel</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -920,8 +1064,47 @@
       btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
       btn.tabIndex = isActive ? 0 : -1;
     });
+    TAB_NAMES.forEach(t => {
+      const btn = document.getElementById('bnav-' + t);
+      if (btn) btn.classList.toggle('active', t === name);
+    });
     if (name === 'ledger') renderLedger();
     if (name === 'summary') renderSummary();
+  }
+
+  // ── CONFIRM SHEET (replaces native confirm()) ────────────
+  let _confirmResolve = null;
+  function showConfirm(msg, okLabel) {
+    return new Promise(resolve => {
+      document.getElementById('confirm-msg').textContent = msg;
+      document.getElementById('confirm-ok-btn').textContent = okLabel || 'Confirm';
+      _confirmResolve = resolve;
+      document.getElementById('confirm-sheet').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    });
+  }
+  function confirmOk() {
+    document.getElementById('confirm-sheet').classList.remove('open');
+    document.body.style.overflow = '';
+    if (_confirmResolve) _confirmResolve(true);
+    _confirmResolve = null;
+  }
+  function confirmCancel() {
+    document.getElementById('confirm-sheet').classList.remove('open');
+    document.body.style.overflow = '';
+    if (_confirmResolve) _confirmResolve(false);
+    _confirmResolve = null;
+  }
+  document.getElementById('confirm-ok-btn').addEventListener('click', confirmOk);
+
+  // ── FILTER TOGGLE ─────────────────────────────────────────
+  function toggleFilters() {
+    const panel = document.getElementById('filter-panel');
+    const btn = document.getElementById('filter-toggle-btn');
+    if (!panel || !btn) return;
+    const isOpen = panel.style.display === 'block';
+    panel.style.display = isOpen ? 'none' : 'block';
+    btn.setAttribute('aria-expanded', String(!isOpen));
   }
 
   // Keyboard navigation for tab list (Left/Right/Home/End)
@@ -985,7 +1168,7 @@
         const hash = await sha256Hex(f);
         const dup = isDuplicateOfSaved(hash);
         if (dup) {
-          const ok = confirm('"' + f.name + '" looks identical to a receipt already saved for ' + dup.year + ' (' + (dup.record.vendor || 'unknown vendor') + ', $' + ((dup.record.biz_total ?? dup.record.total) || 0).toFixed(2) + '). Add it anyway?');
+          const ok = await showConfirm('"' + f.name + '" looks identical to a receipt already saved for ' + dup.year + ' (' + (dup.record.vendor || 'unknown vendor') + ', $' + ((dup.record.biz_total ?? dup.record.total) || 0).toFixed(2) + '). Add it anyway?', 'Add anyway');
           if (!ok) continue;
         }
         f._fileHash = hash;
@@ -1154,6 +1337,13 @@
   function renderExtractionCards() {
     const container = document.getElementById('extraction-cards');
     container.innerHTML = '';
+    const statusIcons = {
+      extracting: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.56"/></svg>',
+      ready:  '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+      saving: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
+      saved:  '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+      error:  '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    };
     const statusLabels = { extracting:'Extracting...', ready:'Ready', saving:'Saving...', saved:'Saved', error:'Error' };
 
     extractions.forEach((ext, i) => {
@@ -1165,11 +1355,11 @@
 
       const itemsHtml = items.map((item, j) => {
         const isPersonal = item.personal === true;
-        return '<div style="display:grid;grid-template-columns:1fr 50px 68px 68px auto;gap:5px;margin-bottom:6px;align-items:center;opacity:' + (isPersonal ? '0.45' : '1') + ';">' +
+        return '<div class="item-row" style="opacity:' + (isPersonal ? '0.45' : '1') + ';">' +
           '<input type="text" value="' + esc(item.description||'') + '" placeholder="Description" oninput="extractions[' + i + '].data.items[' + j + '].description=this.value" style="font-size:12px;' + (isPersonal ? 'text-decoration:line-through;' : '') + '" />' +
-          '<input type="number" value="' + (item.quantity??1) + '" placeholder="Qty" min="0" step="any" oninput="extractions[' + i + '].data.items[' + j + '].quantity=parseFloat(this.value)||0;recalcTotals(' + i + ')" style="font-size:12px;" />' +
-          '<input type="number" value="' + ((item.unit_price??0).toFixed(2)) + '" placeholder="Unit $" min="0" step="0.01" oninput="extractions[' + i + '].data.items[' + j + '].unit_price=parseFloat(this.value)||0;recalcTotals(' + i + ')" style="font-size:12px;" />' +
-          '<input type="number" value="' + ((item.line_total??0).toFixed(2)) + '" placeholder="Line $" min="0" step="0.01" oninput="extractions[' + i + '].data.items[' + j + '].line_total=parseFloat(this.value)||0;recalcTotals(' + i + ')" style="font-size:12px;" />' +
+          '<input type="number" value="' + (item.quantity??1) + '" placeholder="Qty" min="0" step="any" onblur="extractions[' + i + '].data.items[' + j + '].quantity=parseFloat(this.value)||0;recalcTotals(' + i + ')" style="font-size:12px;" />' +
+          '<input type="number" value="' + ((item.unit_price??0).toFixed(2)) + '" placeholder="Unit $" min="0" step="0.01" onblur="extractions[' + i + '].data.items[' + j + '].unit_price=parseFloat(this.value)||0;recalcTotals(' + i + ')" style="font-size:12px;" />' +
+          '<input type="number" value="' + ((item.line_total??0).toFixed(2)) + '" placeholder="Line $" min="0" step="0.01" onblur="extractions[' + i + '].data.items[' + j + '].line_total=parseFloat(this.value)||0;recalcTotals(' + i + ')" style="font-size:12px;" />' +
           '<button onclick="togglePersonal(' + i + ',' + j + ')" title="' + (isPersonal ? 'Mark as business' : 'Mark as personal') + '" style="font-size:11px;padding:3px 7px;border-radius:5px;border:0.5px solid ' + (isPersonal ? '#993556' : 'var(--border-secondary)') + ';background:' + (isPersonal ? '#FBEAF0' : 'none') + ';color:' + (isPersonal ? '#993556' : 'var(--text-secondary)') + ';cursor:pointer;white-space:nowrap;font-family:var(--font-sans);">' + (isPersonal ? '\u{1F464} Personal' : 'Personal?') + '</button>' +
         '</div>';
       }).join('');
@@ -1187,7 +1377,7 @@
           thumbHtml +
           '<div style="flex:1;min-width:0;">' +
             '<div style="font-size:13px;font-weight:500;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(ext.file.name) + '</div>' +
-            '<span class="status-pill ' + ext.status + '">' + statusLabels[ext.status] + '</span>' +
+            '<span class="status-pill ' + ext.status + '">' + (statusIcons[ext.status]||'') + statusLabels[ext.status] + '</span>' +
           '</div>' +
         '</div>' +
         (ext.status === 'extracting'
@@ -1199,8 +1389,8 @@
               '<div class="field"><label>Vendor</label><input type="text" value="' + esc(d.vendor||'') + '" oninput="extractions[' + i + '].data.vendor=this.value" /></div>' +
               '<div class="field"><label>Date</label><input type="date" value="' + (d.date||'') + '" oninput="extractions[' + i + '].data.date=this.value" /></div>' +
               '<div class="field field-full"><label>Category</label><select onchange="extractions[' + i + '].data.suggested_category=this.value">' + catOptions + '</select></div>' +
-              '<div class="field field-full"><label>Line items <span style="font-weight:400;font-size:10px;color:var(--text-secondary);">desc · qty · unit price · line total</span></label><div>' + itemsHtml + '</div>' +
-              '<button class="add-item-btn" onclick="addItem(' + i + ')">+ Add item</button></div>' +
+              '<div class="field field-full"><details class="items-details" open><summary class="items-summary">Line items <span class="items-count">' + items.length + ' item' + (items.length !== 1 ? 's' : '') + ' \xb7 $' + (d.biz_total !== undefined ? d.biz_total : (d.total||0)).toFixed(2) + '</span></summary><div>' + itemsHtml + '</div>' +
+              '<button class="add-item-btn" onclick="addItem(' + i + ')">+ Add item</button></details></div>' +
               '<div class="field field-full" id="totals-block-' + i + '">' + buildTotalsHtml(d, i) + '</div>' +
               '<div class="field field-full"><label>Notes</label><textarea oninput="extractions[' + i + '].data.notes=this.value">' + esc(d.notes||'') + '</textarea></div>' +
             '</div>'
@@ -1678,7 +1868,7 @@
     const idx = savedReceipts.findIndex(r => r.id === id);
     if (idx === -1) return;
     const r = savedReceipts[idx];
-    const ok = confirm('Delete receipt from ' + (r.vendor || 'unknown') + ' (' + (r.date || '?') + ', $' + ((r.biz_total ?? r.total) || 0).toFixed(2) + ')?\n\nThis removes the row(s) from the Google Sheet but does NOT delete the image from Drive.');
+    const ok = await showConfirm('Delete receipt from ' + (r.vendor || 'unknown') + ' (' + (r.date || '?') + ', $' + ((r.biz_total ?? r.total) || 0).toFixed(2) + ')? This removes rows from the Sheet but does NOT delete the image from Drive.', 'Delete');
     if (!ok) return;
     if (!googleAccessToken) {
       alert('Connect Google account first to delete the row from the sheet.');
@@ -1849,11 +2039,11 @@
       const items = r.items || [];
       const itemsHtml = items.map((item, j) => {
         const isP = item.personal === true;
-        return '<div style="display:grid;grid-template-columns:1fr 50px 68px 68px auto;gap:5px;margin-bottom:6px;align-items:center;opacity:' + (isP?'0.45':'1') + ';">' +
+        return '<div class="item-row" style="opacity:' + (isP?'0.45':'1') + ';">' +
           '<input type="text" value="' + esc(item.description||'') + '" oninput="editData.items[' + j + '].description=this.value" style="font-size:12px;' + (isP?'text-decoration:line-through;':'') + '" />' +
-          '<input type="number" value="' + (item.quantity??1) + '" min="0" step="any" oninput="editData.items[' + j + '].quantity=parseFloat(this.value)||0;editRecalc()" style="font-size:12px;" />' +
-          '<input type="number" value="' + ((item.unit_price??0).toFixed(2)) + '" min="0" step="0.01" oninput="editData.items[' + j + '].unit_price=parseFloat(this.value)||0;editRecalc()" style="font-size:12px;" />' +
-          '<input type="number" value="' + ((item.line_total??0).toFixed(2)) + '" min="0" step="0.01" oninput="editData.items[' + j + '].line_total=parseFloat(this.value)||0;editRecalc()" style="font-size:12px;" />' +
+          '<input type="number" value="' + (item.quantity??1) + '" min="0" step="any" onblur="editData.items[' + j + '].quantity=parseFloat(this.value)||0;editRecalc()" style="font-size:12px;" />' +
+          '<input type="number" value="' + ((item.unit_price??0).toFixed(2)) + '" min="0" step="0.01" onblur="editData.items[' + j + '].unit_price=parseFloat(this.value)||0;editRecalc()" style="font-size:12px;" />' +
+          '<input type="number" value="' + ((item.line_total??0).toFixed(2)) + '" min="0" step="0.01" onblur="editData.items[' + j + '].line_total=parseFloat(this.value)||0;editRecalc()" style="font-size:12px;" />' +
           '<button onclick="editTogglePersonal(' + j + ')" style="font-size:11px;padding:3px 7px;border-radius:5px;border:0.5px solid ' + (isP?'#993556':'var(--border-secondary)') + ';background:' + (isP?'#FBEAF0':'none') + ';color:' + (isP?'#993556':'var(--text-secondary)') + ';cursor:pointer;white-space:nowrap;font-family:var(--font-sans);">' + (isP?'\u{1F464} Personal':'Personal?') + '</button>' +
         '</div>';
       }).join('');
