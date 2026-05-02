@@ -923,6 +923,12 @@
   let FOLDER_ID = settings.folderId || '1T6Wa2u13H4RCEpTWR0VMOOTcUF8qxIjT';
   let googleAccessToken = settings.googleAccessToken || null;
 
+  // Declared early to avoid TDZ errors when functions defined later are called
+  // from the OAuth callback IIFE (which runs before later let/const declarations).
+  const TAB_NAMES = ['upload','review','ledger','summary','settings'];
+  let lastHydratedAt = null;
+  let hydrateInFlight = null;
+
   // ── INIT ─────────────────────────────────────────────────
   refreshYearLabel();
   document.getElementById('folder-id-input').value = FOLDER_ID;
@@ -1064,7 +1070,7 @@
   }
 
   // ── TABS ─────────────────────────────────────────────────
-  const TAB_NAMES = ['upload','review','ledger','summary','settings'];
+  // TAB_NAMES declared at top of script (TDZ safety)
   function switchTab(name) {
     TAB_NAMES.forEach(t => {
       document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
@@ -1808,8 +1814,7 @@
   // ── HYDRATE FROM SHEETS ──────────────────────────────────
   // The Google Sheet is the source of truth. This pulls the active year's sheet
   // and REPLACES the local cache so all devices stay in sync.
-  let lastHydratedAt = null;
-  let hydrateInFlight = null;
+  // (lastHydratedAt and hydrateInFlight declared at top of script for TDZ safety)
   async function hydrateFromSheet(opts) {
     opts = opts || {};
     if (!googleAccessToken) return;
